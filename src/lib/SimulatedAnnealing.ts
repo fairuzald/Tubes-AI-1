@@ -1,0 +1,3 @@
+class SimulatedAnnealing extends LocalSearch {
+  
+}
