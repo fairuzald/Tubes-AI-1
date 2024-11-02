@@ -3,27 +3,9 @@ import {
   TemperatureFactory,
 } from "@/lib/SimulatedAnnealing";
 import { MagicCube } from "@/lib/MagicCube";
+import { type NextRequest } from "next/server";
 
-// Utility function to chunk array into smaller pieces
-function chunkArray<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
-}
-
-// Utility function to create a safe stringifiable chunk
-function createChunk<T>(type: string, index: number, data: T) {
-  return {
-    type,
-    index,
-    data,
-    timestamp: Date.now(), // Optional: for tracking chunk order
-  };
-}
-
-export const GET = async () => {
+export const GET = async (req: NextRequest) => {
   const magicCube = new MagicCube();
   const minimumTemperature = Number.MIN_VALUE;
   const initialTemperature = 200;
@@ -41,90 +23,104 @@ export const GET = async () => {
   // Solve
   simulatedAnnealing.solve();
 
+  const responseDto = simulatedAnnealing.toSearchDto();
+
   // console.log(responseDto.duration);
   // console.log(responseDto.finalStateValue);
   // console.log(responseDto.iterationCount);
-  const responseDto = simulatedAnnealing.toSearchDto();
 
   const encoder = new TextEncoder();
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
 
-  const stream = new TransformStream({
-    async start(controller) {
-      try {
-        // Send metrics first (small enough to send as one chunk)
-        const metrics = {
-          finalStateValue: responseDto.finalStateValue,
-          duration: responseDto.duration,
-          iterationCount: responseDto.iterationCount,
-        };
+  // Handle the streaming in a separate async function
+  (async () => {
+    try {
+      // Send metrics
+      await writer.write(
+        encoder.encode(
+          JSON.stringify({
+            type: "metrics",
+            data: {
+              finalStateValue: 100,
+              duration: 5000,
+              iterationCount: 1000,
+            },
+          }) + "\n"
+        )
+      );
 
-        controller.enqueue(
+      for (let i = 0; i < responseDto.states.length; i++) {
+        // console.log(i);
+        await writer.write(
           encoder.encode(
-            JSON.stringify(createChunk("metrics", 0, metrics)) + "\n"
+            JSON.stringify({
+              type: "states",
+              index: i,
+              data: responseDto.states[i],
+            }) + "\n"
           )
         );
 
-        // Stream states in smaller chunks
-        // First, flatten the 4D array into chunks
-        const stateChunks = responseDto.states.map((state, stateIndex) => {
-          // Break down each state into manageable chunks
-          return {
-            stateIndex,
-            chunks: chunkArray(state.flat(3), 1000), // Adjust chunk size as needed
-          };
-        });
-
-        // Send state chunks
-        for (const { stateIndex, chunks } of stateChunks) {
-          for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-            controller.enqueue(
-              encoder.encode(
-                JSON.stringify(
-                  createChunk("state", stateIndex, {
-                    chunkIndex,
-                    totalChunks: chunks.length,
-                    data: chunks[chunkIndex],
-                  })
-                ) + "\n"
-              )
-            );
-
-            // Add small delay to prevent overwhelming the client
-            await new Promise((resolve) => setTimeout(resolve, 10));
-          }
-        }
-
-        // Stream plots in smaller chunks
-        const PLOTS_CHUNK_SIZE = 100;
-        const plotChunks = chunkArray(responseDto.plots, PLOTS_CHUNK_SIZE);
-
-        for (let i = 0; i < plotChunks.length; i++) {
-          controller.enqueue(
-            encoder.encode(
-              JSON.stringify(
-                createChunk("plots", i, {
-                  chunkIndex: i,
-                  totalChunks: plotChunks.length,
-                  data: plotChunks[i],
-                })
-              ) + "\n"
-            )
-          );
-
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        }
-
-        controller.terminate();
-      } catch (error) {
-        controller.error(error);
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
-    },
+
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < responseDto.plots.length; i += BATCH_SIZE) {
+        // console.log(i);
+        const batch = responseDto.plots.slice(i, i + BATCH_SIZE);
+        await writer.write(
+          encoder.encode(
+            JSON.stringify({
+              type: "plots",
+              index: i,
+              total: responseDto.plots.length,
+              data: batch,
+            }) + "\n"
+          )
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+
+      // Send completion message
+      await writer.write(
+        encoder.encode(
+          JSON.stringify({
+            type: "complete",
+            timestamp: Date.now(),
+          }) + "\n"
+        )
+      );
+
+      // Close the writer to end the stream
+      await writer.close();
+    } catch (error) {
+      console.error("Streaming error:", error);
+      // Send error message before closing
+      await writer.write(
+        encoder.encode(
+          JSON.stringify({
+            type: "error",
+            message: error instanceof Error ? error.message : "Unknown error",
+          }) + "\n"
+        )
+      );
+      await writer.close();
+    }
+  })();
+
+  // Clean up if client disconnects
+  req.signal.addEventListener("abort", () => {
+    writer.close();
   });
 
   return new Response(stream.readable, {
     headers: {
       "Content-Type": "application/json",
       "Transfer-Encoding": "chunked",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
     },
   });
 };
