@@ -115,7 +115,16 @@ const Visualizer: React.FC<VisualizerProps> = ({
       sceneRef.current = scene;
 
       const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-      camera.position.z = 10;
+
+      // Set initial camera position for isometric view
+      const distance = 7;
+      const angle = Math.PI / 4; // 45 degrees
+      camera.position.set(
+        distance * Math.cos(angle),
+        distance * Math.sin(angle),
+        distance * Math.cos(angle)
+      );
+      camera.lookAt(0, 0, 0);
       cameraRef.current = camera;
 
       const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -142,7 +151,6 @@ const Visualizer: React.FC<VisualizerProps> = ({
           MIDDLE: THREE.MOUSE.DOLLY,
           RIGHT: THREE.MOUSE.RIGHT,
         };
-
         // Set initial camera position for plain mode
         camera.position.set(0, 0, 15);
         camera.lookAt(0, 0, 0);
@@ -152,12 +160,18 @@ const Visualizer: React.FC<VisualizerProps> = ({
         camera.up.set(0, 1, 0);
 
         // Limit vertical panning
-        controls.minPolarAngle = Math.PI / 2; // 90 degrees
-        controls.maxPolarAngle = Math.PI / 2; // 90 degrees
+        controls.minPolarAngle = Math.PI / 2;
+        controls.maxPolarAngle = Math.PI / 2;
 
         // Disable auto-rotate in plain mode
         controls.autoRotate = false;
       } else {
+        // Set initial rotation for cube group to match isometric view
+        if (cubeGroupRef.current) {
+          cubeGroupRef.current.rotation.x = Math.PI / 6; // 30 degrees
+          cubeGroupRef.current.rotation.y = Math.PI / 4; // 45 degrees
+        }
+
         controls.enableRotate = true;
         controls.minPolarAngle = 0;
         controls.maxPolarAngle = Math.PI;
@@ -165,10 +179,15 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
       controlsRef.current = controls;
 
-      scene.add(new THREE.AmbientLight(0x404040));
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-      directionalLight.position.set(5, 5, 5);
-      scene.add(directionalLight);
+      scene.add(new THREE.AmbientLight(0x404040, 1.5));
+
+      const directionalLight1 = new THREE.DirectionalLight(0xffffff, 1);
+      directionalLight1.position.set(5, 5, 5);
+      scene.add(directionalLight1);
+
+      const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+      directionalLight2.position.set(-5, -5, -5);
+      scene.add(directionalLight2);
 
       return renderer;
     },
@@ -183,7 +202,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
   );
 
   const createCubes = useCallback(() => {
-    if(!matrixNumber) return;
+    if (!matrixNumber) return;
     const scene = sceneRef.current;
     if (!scene) return;
 
@@ -420,7 +439,6 @@ const Visualizer: React.FC<VisualizerProps> = ({
         ref={mountRef}
         className="border border-gray-300 rounded-lg shadow-lg mb-4 relative overflow-hidden"
       >
-        {/* Explode and Toggle */}
         <div className="p-3 flex flex-col gap-2 absolute top-2 left-3 z-10">
           {!isPlainMode && (
             <Button
@@ -442,7 +460,6 @@ const Visualizer: React.FC<VisualizerProps> = ({
             {isPlainMode ? "Cube" : "Plain"}
           </Button>
         </div>
-
         <Button className="rounded-full top-6 right-6 absolute">
           <QuestionMarkCircledIcon />
         </Button>
