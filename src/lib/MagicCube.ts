@@ -2,15 +2,16 @@
 type Position = [number, number, number];
 
 // MagicCube class for representing the cube and its basic operations
-class MagicCube {
+export class MagicCube {
   private cube: number[][][];
   private m: number;
 
-  constructor(size: number) {
-    this.m = size;
+  constructor() {
+    this.m = 5;
     this.cube = [];
     this.initializeCube();
   }
+
 
   public getElement(pos: Position)
   {
@@ -25,6 +26,7 @@ class MagicCube {
   }
 
   private initializeCube(): void {
+
     // Create a list of numbers from 1 to m^3
     const numbers = Array.from(
       { length: Math.pow(this.m, 3) },
@@ -176,7 +178,7 @@ class MagicCube {
   }
 
   public clone(): MagicCube {
-    const newCube = new MagicCube(this.m);
+    const newCube = new MagicCube();
     newCube.cube = JSON.parse(JSON.stringify(this.cube));
     return newCube;
   }
