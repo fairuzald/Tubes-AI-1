@@ -2,93 +2,89 @@ import { LocalSearch } from "./LocalSearch";
 import { MagicCube } from "./MagicCube";
 import { SearchDto } from "./SearchDto";
 
-// Create a new interface extending SearchDto
 export interface RandomRestartSearchDto extends SearchDto {
   restartCount: number;
   iterationCounter: number[];
 }
 
 export class RandomRestartHC extends LocalSearch {
-  // Search state
-  private cube: MagicCube;
-  private restartCount: number;
-  private maxRestarts: number;
-  private iterationCounter: number[]; // number iteration each restart
-  private bestObjectiveFunction: number;
+  private readonly maxRestarts: number;
+  private restartCount = 0;
+  private iterationCounter: number[] = [];
+  private bestObjectiveFunction = -Infinity;
 
-  // Constructor
-  constructor(cube: MagicCube, maxRestarts: number) {
+  constructor(private cube: MagicCube, maxRestarts: number) {
     super(cube);
-    this.cube = cube;
-    this.restartCount = 0;
-    this.iterationCounter = [];
     this.maxRestarts = maxRestarts;
-    this.bestObjectiveFunction = -Infinity;
   }
 
-  public solve() {
+  // Random Restart Hill Climbing
+  public solve(): void {
     this.startTimer();
 
-    do {
-      // Initialize a new random cube for each restart
-      this.cube.initializeCube();
-
-      // to detect peak
-      let isLocalOptimum = false;
-      let iterationNumber = 0;
-
-      // Ascent Logic
-      while (!isLocalOptimum) {
-        // Get the best neighbor
-        const bestNeighbor = this.cube.getBestSuccessor();
-
-        // Calculate objective functions
-        const currentValue = this.cube.calculateObjectiveFunction();
-        const neighborValue = bestNeighbor.calculateObjectiveFunction();
-
-        this.addStateEntry(this.cube);
-        this.addObjectiveFunctionPlotEntry(iterationNumber, currentValue);
-
-        // Goal state
-        if (neighborValue <= currentValue) {
-          // Global optimum
-          if (currentValue === 0) {
-            return;
-          }
-          // Stuck local optimum
-          else {
-            isLocalOptimum = true;
-          }
-          if (currentValue > this.bestObjectiveFunction) {
-            this.bestObjectiveFunction = currentValue;
-          }
-          this.iterationCounter.push(iterationNumber);
-        }
-        // Move to neighbor for better value
-        else {
-          iterationNumber++;
-          this.cube = bestNeighbor;
-        }
+    // Perform restarts until global optimum is found
+    while (this.restartCount < this.maxRestarts) {
+      if (this.performSingleRestart()) {
+        return; // Found global optimum
       }
-
       this.restartCount++;
-    } while (this.restartCount < this.maxRestarts);
+    }
 
     this.endTimer();
+  }
+
+  private performSingleRestart(): boolean {
+    this.cube.initializeCube();
+    let iterationNumber = 0;
+
+    while (true) {
+      const currentValue = this.cube.calculateObjectiveFunction();
+      const bestNeighbor = this.cube.getBestSuccessor();
+      const neighborValue = bestNeighbor.calculateObjectiveFunction();
+
+      this.updateSearchState(iterationNumber, currentValue);
+
+      // If no better neighbor found
+      if (neighborValue <= currentValue) {
+        // Update state
+        this.handlePeak(currentValue, iterationNumber);
+        return currentValue === 0; // Return true if global optimum found
+      }
+
+      // Move to best neighbor
+      this.cube = bestNeighbor;
+      iterationNumber++;
+    }
+  }
+
+  private updateSearchState(
+    iterationNumber: number,
+    currentValue: number
+  ): void {
+    this.addStateEntry(this.cube);
+    this.addObjectiveFunctionPlotEntry(iterationNumber, currentValue);
+  }
+
+  private handlePeak(currentValue: number, iterationNumber: number): void {
+    if (currentValue > this.bestObjectiveFunction) {
+      this.bestObjectiveFunction = currentValue;
+    }
+    this.iterationCounter.push(iterationNumber);
   }
 
   public toSearchDto(): RandomRestartSearchDto {
     return {
       duration: this.getDuration(),
       finalStateValue: this.bestObjectiveFunction,
-      iterationCount: this.iterationCounter.reduce(
-        (sum, count) => sum + count,
-        0
-      ),
+      iterationCount: this.calculateTotalIterations(),
       states: this.getStates(),
       restartCount: this.restartCount,
       iterationCounter: this.iterationCounter,
       plots: [this.getObjectiveFunctionPlot()],
     };
+  }
+
+  private calculateTotalIterations(): number {
+    return this.iterationCounter.reduce((sum, count) => sum + count, 0);
   }
 }

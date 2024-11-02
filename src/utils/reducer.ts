@@ -1,7 +1,7 @@
-
 import { AlgorithmType } from "@/constant/data";
 import { Plot } from "@/lib/Plot";
 import { RandomRestartSearchDto } from "@/lib/RandomRestartHC";
+import { SearchDto } from "@/lib/SearchDto";
 
 interface State {
   selectedAlgorithm: AlgorithmType | null;
@@ -27,6 +27,7 @@ type Action =
   | { type: "SET_FILE_DATA"; payload: File | null }
   | { type: "SET_PLOTS"; payload: Plot<number, number>[] }
   | { type: "SET_RANDOM_STATE_SOLUTION"; payload: RandomRestartSearchDto }
+  | { type: "SET_SOLUTION"; payload: SearchDto }
   | { type: "RESET_STATE" }
   | { type: "CLEAR_CUBES" };
 
@@ -90,10 +91,19 @@ function reducer(state: State, action: Action): State {
       };
     case "SET_PLOTS":
       return { ...state, plots: action.payload };
+    case "SET_SOLUTION":
+      return {
+        ...state,
+        magicCubes: action.payload.states,
+        plots: action.payload.plots,
+        finalValue: action.payload.finalStateValue,
+        duration: action.payload.duration,
+        currentStep: 0,
+        isPlaying: false,
+      };
     default:
       return state;
   }
 }
 
 export { initialState, reducer };
-

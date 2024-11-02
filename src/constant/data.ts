@@ -1,4 +1,4 @@
-const PLAYBACK_SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const;
+const PLAYBACK_SPEEDS = [1, 1.5, 2, 3, 4, 5,8,10,15,20] as const;
 const ALGORITHMS = {
   STEEPEST_ASCENT: "Steepest Ascent Hill Climbing",
   SIDEWAYS_MOVE: "Sideways Move Hill Climbing",
@@ -10,6 +10,6 @@ const ALGORITHMS = {
 
 const INTERVAL_DURATION = 500;
 
-type AlgorithmType = (typeof ALGORITHMS)[keyof typeof ALGORITHMS];
+type AlgorithmType = (typeof ALGORITHMS)[keyof typeof ALGORITHMS] | null;
 
 export { PLAYBACK_SPEEDS, ALGORITHMS, type AlgorithmType, INTERVAL_DURATION };
