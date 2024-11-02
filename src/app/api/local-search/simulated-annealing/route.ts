@@ -6,14 +6,14 @@ import {
 import { MagicCube } from "@/lib/MagicCube";
 
 export const GET = async () => {
-  // Initialize 5x5x5 magic cube
   const magicCube = new MagicCube();
-
-  // Initialize search
-  const initialTemperature = 10;
-  const minimumTemperature = 0.8;
+  const minimumTemperature = Number.MIN_VALUE;
+  const initialTemperature = 200;
+  const alpha = 0.99955;
   const temperatureFunction =
-    TemperatureFactory.logarithmicDecay(initialTemperature);
+    // TemperatureFactory.logarithmicDecay(initialTemperature);
+    TemperatureFactory.exponentialDecay(initialTemperature, alpha);
+
   const simulatedAnnealing = new SimulatedAnnealing(
     magicCube,
     temperatureFunction,
@@ -25,9 +25,9 @@ export const GET = async () => {
 
   const responseDto = simulatedAnnealing.toSearchDto();
 
-  console.log(responseDto.duration);
-  console.log(responseDto.finalStateValue);
-  console.log(responseDto.iterationCount);
+  // console.log(responseDto.duration);
+  // console.log(responseDto.finalStateValue);
+  // console.log(responseDto.iterationCount);
 
   return NextResponse.json(responseDto);
 };

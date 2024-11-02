@@ -6,10 +6,16 @@ export class MagicCube {
   private cube: number[][][];
   private m: number;
 
-  constructor() {
+  constructor(initialValue: number[][][] | null = null) {
     this.m = 5;
-    this.cube = [];
-    this.initializeCube();
+
+    if (initialValue) {
+      // Copy the cube
+      this.cube = JSON.parse(JSON.stringify(initialValue));
+    } else {
+      this.cube = [];
+      this.initializeCube();
+    }
   }
 
   public getElement(pos: Position) {
@@ -76,6 +82,7 @@ export class MagicCube {
         const row = Array(this.m)
           .fill(0)
           .map((_, k) => this.cube[i][j][k]);
+
         lines.push(row);
       }
     }
@@ -178,9 +185,7 @@ export class MagicCube {
   }
 
   public clone(): MagicCube {
-    const newCube = new MagicCube();
-    newCube.cube = JSON.parse(JSON.stringify(this.cube));
-    return newCube;
+    return new MagicCube(this.cube);
   }
 
   public generateAllSuccessors(): MagicCube[] {
@@ -220,10 +225,15 @@ export class MagicCube {
     let pos2;
     do {
       pos2 = positions[Math.floor(Math.random() * positions.length)];
-    } while (pos1 === pos2);
+    } while (this.isPositionEqual(pos1, pos2));
 
     const newCube = this.clone();
     newCube.swap(pos1, pos2);
+    // console.log(pos1, pos2);
     return newCube;
+  }
+
+  public isPositionEqual(pos1: Position, pos2: Position): boolean {
+    return pos1[0] === pos2[0] && pos1[1] === pos2[1] && pos1[2] === pos2[2];
   }
 }

@@ -9,24 +9,24 @@ export class SimulatedAnnealing extends LocalSearch {
   private temperatureFunction;
   private staticProbabilityValue: number | null;
 
-  // Search state
-  private cube: MagicCube;
+  // Current state
+  private currentState: MagicCube;
 
   // Plot result
   private probabilityPlot: Plot<number, number>;
 
   // Constructor
   constructor(
-    cube: MagicCube,
+    initialCube: MagicCube,
     temperatureFunction: (t: number) => number,
     minimumTemperature: number = 0,
     staticProbabilityValue: number | null = null
   ) {
-    super(cube);
+    super(initialCube);
     this.temperatureFunction = temperatureFunction;
     this.minimumTemperature = minimumTemperature;
     this.staticProbabilityValue = staticProbabilityValue;
-    this.cube = cube;
+    this.currentState = initialCube;
     this.probabilityPlot = {
       labelX: "Iterasi",
       labelY: "e^(dE/T)",
@@ -38,32 +38,40 @@ export class SimulatedAnnealing extends LocalSearch {
   public solve(): void {
     this.startTimer();
 
-    let currentState = this.cube;
     let t = 1;
-    let temperature = this.temperatureFunction(t);
 
-    while (temperature > this.minimumTemperature) {
-      console.log(temperature);
-      const currentStateValue = currentState.calculateObjectiveFunction();
-      const nextState = this.cube.generateRandomSuccessor();
-      const nextStateValue = nextState.calculateObjectiveFunction();
+    while (true) {
+      let temperature = this.temperatureFunction(t);
 
-      const deltaE = nextStateValue - currentStateValue;
+      // Stop
+      if (temperature < this.minimumTemperature) break;
 
-      const probability = this.staticProbabilityValue ?? Math.random();
-      const edET = Math.exp(deltaE / temperature);
-      if (deltaE > 0 || probability < edET) {
-        currentState = nextState;
-      }
+      const currentStateValue = this.currentState.calculateObjectiveFunction();
 
       // Update plot data + history states
-      this.addStateEntry(currentState);
+      this.addStateEntry(this.currentState);
       this.addIterationCount();
       this.addObjectiveFunctionPlotEntry(
         this.iterationCount,
         currentStateValue
       );
-      this.addProbabilityPlotEntry(t, edET);
+
+      const nextState = this.currentState.generateRandomSuccessor();
+      const nextStateValue = nextState.calculateObjectiveFunction();
+
+      const deltaE = nextStateValue - currentStateValue;
+      if (deltaE > 0) {
+        this.currentState = nextState;
+      } else {
+        const probability = this.staticProbabilityValue ?? Math.random();
+        const edET = Math.exp(deltaE / temperature);
+        if (edET > probability) {
+          this.currentState = nextState;
+        }
+
+        // Update probability plot
+        this.addProbabilityPlotEntry(this.getIterationCount(), edET);
+      }
 
       // Update search state
       t++;
@@ -101,6 +109,10 @@ export class TemperatureFactory {
   // T(t) = T0 * alpha^t
   static exponentialDecay(initialTemperature: number, alpha: number) {
     return (t: number) => initialTemperature * Math.pow(alpha, t);
+  }
+
+  static fastExponentialDecay(initialTemperature: number, alpha: number) {
+    return (t: number) => initialTemperature * Math.pow(alpha, t * t);
   }
 
   // T(t) = T0 * (1 - t/tmax)

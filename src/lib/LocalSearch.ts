@@ -66,7 +66,7 @@ export abstract class LocalSearch {
 
   protected endTimer(): void {
     this.endTime = performance.now();
-    this.duration = (this.endTime - this.startTime) / 100;
+    this.duration = (this.endTime - this.startTime) / 1000;
   }
 
   protected addIterationCount() {
