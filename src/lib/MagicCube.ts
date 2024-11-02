@@ -12,7 +12,21 @@ export class MagicCube {
     this.initializeCube();
   }
 
-  public initializeCube(): void {
+
+  public getElement(pos: Position)
+  {
+    const [i, j, k] = pos;
+    return this.cube[i][j][k];
+  }
+
+  public setElement(pos: Position, val: number)
+  {
+    const [i, j, k] = pos;
+    this.cube[i][j][k] = val;
+  }
+
+  private initializeCube(): void {
+
     // Create a list of numbers from 1 to m^3
     const numbers = Array.from(
       { length: Math.pow(this.m, 3) },
