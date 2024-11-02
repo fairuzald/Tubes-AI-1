@@ -110,7 +110,7 @@ export default function MagicCubeSolver() {
   }, [router]);
 
   return (
-    <main className="px-8 sm:px-10 md:px-14 lg:px-16 xl:px-28 py-10">
+    <div className="px-8 sm:px-10 md:px-14 lg:px-16 xl:px-28 py-10">
       <div className="flex gap-4 items-center justify-center mb-10">
         <Image src="/logo.png" alt="Magic Cube" width={50} height={50} />
         <h1 className="text-center text-3xl font-bold">
@@ -298,6 +298,6 @@ export default function MagicCubeSolver() {
           </div>
         ))}
       </div>
-    </main>
+    </div>
   );
 }
