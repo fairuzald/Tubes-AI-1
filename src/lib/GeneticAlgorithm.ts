@@ -63,13 +63,13 @@ class GeneticAlgorithm
                 let nextPopulation: MagicCube[] = [];
                 let chances = this.population.map(
                         cube => cube.calculateObjectiveFunction());
-                chances[0] += 109;
-                for (let i = 1; i < this.population_count; ++i)
+                chances.unshift(1000000);
+                for (let i = 1; i < this.population_count + 1; ++i)
                 chances[i] += chances[i - 1];
                 for (let i = 0; i < this.population_count; i += 2)
                 {
+                        let mn = chances[0];
                         let mx = chances[-1];
-                        let mn = 0;
                         let RANDVAL = randInt(mn, mx);
                         let l = 0;
                         let r = this.population_count;
