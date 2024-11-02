@@ -12,7 +12,7 @@ class MagicCube {
     this.initializeCube();
   }
 
-  private initializeCube(): void {
+  public initializeCube(): void {
     // Create a list of numbers from 1 to m^3
     const numbers = Array.from(
       { length: Math.pow(this.m, 3) },
