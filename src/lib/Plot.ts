@@ -1,9 +1,9 @@
-interface PlotData<X, Y> {
+export interface PlotData<X, Y> {
   x: X;
   y: Y;
 }
 
-interface Plot<X, Y> {
+export interface Plot<X, Y> {
   labelX: string;
   labelY: string;
   data: PlotData<X, Y>[];

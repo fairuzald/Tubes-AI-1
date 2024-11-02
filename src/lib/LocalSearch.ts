@@ -1,3 +1,6 @@
+import { MagicCube } from "./MagicCube";
+import { Plot } from "./Plot";
+
 // LocalSearch class for handling search operations
 export abstract class LocalSearch {
   protected states: MagicCube[];
@@ -32,6 +35,22 @@ export abstract class LocalSearch {
     return this.getFinalState().calculateObjectiveFunction();
   }
 
+  public getStates(): MagicCube[] {
+    return this.states;
+  }
+
+  public getDuration() {
+    return this.duration;
+  }
+
+  public getIterationCount() {
+    return this.iterationCount;
+  }
+
+  public getObjectiveFunctionPlot() {
+    return this.objectiveFunctionPlot;
+  }
+
   protected addStateEntry(state: MagicCube): void {
     this.states.push(state.clone());
   }
@@ -46,7 +65,7 @@ export abstract class LocalSearch {
 
   protected endTimer(): void {
     this.endTime = performance.now();
-    this.duration = (this.endTime - this.startTime) / 1000;
+    this.duration = (this.endTime - this.startTime) / 100;
   }
 
   protected addIterationCount() {
