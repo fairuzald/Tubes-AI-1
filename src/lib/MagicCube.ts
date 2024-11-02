@@ -12,8 +12,18 @@ export class MagicCube {
     this.initializeCube();
   }
 
+  public getElement(pos: Position) {
+    const [i, j, k] = pos;
+    return this.cube[i][j][k];
+  }
+
   public getCube(): number[][][] {
     return this.cube;
+  }
+
+  public setElement(pos: Position, val: number) {
+    const [i, j, k] = pos;
+    this.cube[i][j][k] = val;
   }
 
   public initializeCube(): void {

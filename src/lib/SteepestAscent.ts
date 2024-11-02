@@ -1,4 +1,6 @@
 import { LocalSearch } from "./LocalSearch";
+import { MagicCube } from "./MagicCube";
+import { SearchDto } from "./SearchDto";
 
 export class SteepestAscent extends LocalSearch{
 
@@ -23,6 +25,7 @@ export class SteepestAscent extends LocalSearch{
 
             const deltaE = nextObj - currentObj;
 
+            console.log(nextObj);
 
             this.addStateEntry(currentState);
             this.addObjectiveFunctionPlotEntry(this.iterationCount, currentObj);
@@ -39,5 +42,14 @@ export class SteepestAscent extends LocalSearch{
       
     }
 
+    public toSearchDto() : SearchDto {
+        return {
+            duration: this.getDuration(),
+            iterationCount : this.getIterationCount(),
+            finalStateValue : this.getFinalObjectiveFunction(),
+            states : this.getStates(),
+            plots : [this.getObjectiveFunctionPlot()]
+        }
+    }
 
 }

@@ -1,5 +1,6 @@
 import { LocalSearch } from "./LocalSearch";
-
+import { MagicCube } from "./MagicCube";
+import { SearchDto } from "./SearchDto";
 export class Stochastic extends LocalSearch {
     private cube: MagicCube;
 
@@ -16,7 +17,9 @@ export class Stochastic extends LocalSearch {
       for(let i = 0; i < nmax; i++){
         const nextState = currentState.generateRandomSuccessor();
         const currentObj = currentState.calculateObjectiveFunction();
-        const nextObj = nextState.calculateObjectiveFunction();
+        const nextObj = nextState.
+        calculateObjectiveFunction();
+        console.log(nextObj);
 
         const deltaE = nextObj - currentObj;
 
@@ -29,5 +32,15 @@ export class Stochastic extends LocalSearch {
         }
       }
 
+    }
+
+    public toSearchDto(): SearchDto {
+        return {
+            duration: this.getDuration(),
+            iterationCount: this.getIterationCount(),
+            finalStateValue: this.getFinalObjectiveFunction(),
+            states: this.getStates(),
+            plots: [this.getObjectiveFunctionPlot()]
+        }
     }
 }
