@@ -1,8 +1,7 @@
-import { MagicCube } from "./MagicCube";
 import { Plot } from "./Plot";
 
 export interface SearchDto {
-  states: MagicCube[];
+  states: number[][][][];
   finalStateValue: number;
   duration: number;
   iterationCount: number;

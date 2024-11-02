@@ -12,6 +12,10 @@ export class MagicCube {
     this.initializeCube();
   }
 
+  public getCube(): number[][][] {
+    return this.cube;
+  }
+
   public initializeCube(): void {
     // Create a list of numbers from 1 to m^3
     const numbers = Array.from(

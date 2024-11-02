@@ -35,8 +35,9 @@ export abstract class LocalSearch {
     return this.getFinalState().calculateObjectiveFunction();
   }
 
-  public getStates(): MagicCube[] {
-    return this.states;
+  public getStates(): number[][][][] {
+    const matrices = this.states.map((state) => state.getCube());
+    return matrices;
   }
 
   public getDuration() {

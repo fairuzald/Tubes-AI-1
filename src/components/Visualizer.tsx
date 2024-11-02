@@ -1,7 +1,10 @@
-"use client"
+"use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as THREE from "three";
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { Button } from "./ui/button";
+import { QuestionMarkCircledIcon } from "@radix-ui/react-icons";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 
 interface CubeUserData {
   layerIndex: number;
@@ -12,7 +15,7 @@ interface CubeUserData {
 }
 
 interface VisualizerProps {
-  matrixNumber: number[][][];
+  matrixNumber: number[][][] | null;
   width: number;
   height: number;
   backgroundColor?: string;
@@ -180,6 +183,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
   );
 
   const createCubes = useCallback(() => {
+    if(!matrixNumber) return;
     const scene = sceneRef.current;
     if (!scene) return;
 
@@ -410,42 +414,55 @@ const Visualizer: React.FC<VisualizerProps> = ({
     }
   };
 
-  return (
-    <div className="flex flex-col items-center p-4">
+  return !matrixNumber ? null : (
+    <div className="flex flex-col items-center p-4 relative">
       <div
         ref={mountRef}
         className="border border-gray-300 rounded-lg shadow-lg mb-4 relative overflow-hidden"
-      ></div>
+      >
+        {/* Explode and Toggle */}
+        <div className="p-3 flex flex-col gap-2 absolute top-2 left-3 z-10">
+          {!isPlainMode && (
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleContextMenuAction("explode");
+              }}
+            >
+              {isExploded ? "Collapse" : "Explode"}
+            </Button>
+          )}
 
-      <div className="p-3 flex gap-4">
-        {!isPlainMode && (
-          <button
-            className="block w-fit text-left px-4 py-2 bg-gray-100 hover:brightness-90 transition-all rounded"
+          <Button
             onClick={(e) => {
               e.stopPropagation();
-              handleContextMenuAction("explode");
+              handleContextMenuAction("plain");
             }}
           >
-            {isExploded ? "Collapse View" : "Explode View"}
-          </button>
-        )}
+            {isPlainMode ? "Cube" : "Plain"}
+          </Button>
+        </div>
 
-        <button
-          className="block w-fit text-left px-4 py-2 bg-gray-100 hover:brightness-90 transition-all rounded"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleContextMenuAction("plain");
-          }}
-        >
-          {isPlainMode ? "Cube View" : "Plain View"}
-        </button>
-      </div>
-      <div className="mt-2 text-sm text-gray-600">
-        <p>Double-click cube to isolate layer</p>
-        <p>Double-click outside to show all layers</p>
-        <p>Click and hold to pause and manually rotate</p>
-        <p>Click outside cube to toggle auto-rotation</p>
-        <p>Use mouse wheel to zoom in/out</p>
+        <Button className="rounded-full top-6 right-6 absolute">
+          <QuestionMarkCircledIcon />
+        </Button>
+
+        <HoverCard>
+          <HoverCardTrigger asChild>
+            <Button className="rounded-full top-6 right-6 absolute">
+              <QuestionMarkCircledIcon />
+            </Button>
+          </HoverCardTrigger>
+          <HoverCardContent align="end">
+            <div className="text-sm text-gray-600">
+              <p>Double-click cube to isolate layer</p>
+              <p>Double-click outside to show all layers</p>
+              <p>Click and hold to pause and manually rotate</p>
+              <p>Click outside cube to toggle auto-rotation</p>
+              <p>Use mouse wheel to zoom in/out</p>
+            </div>
+          </HoverCardContent>
+        </HoverCard>
       </div>
     </div>
   );
