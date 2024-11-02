@@ -1,4 +1,5 @@
 import { LocalSearch } from "./LocalSearch";
+import { MagicCube } from "./MagicCube";
 
 export class SidewaysMove extends LocalSearch {
     private cube : MagicCube;
