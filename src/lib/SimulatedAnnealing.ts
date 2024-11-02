@@ -1,4 +1,8 @@
-class SimulatedAnnealing extends LocalSearch {
+import { LocalSearch } from "./LocalSearch";
+import { MagicCube } from "./MagicCube";
+import { Plot } from "./Plot";
+
+export class SimulatedAnnealing extends LocalSearch {
   // Search state
   private cube: MagicCube;
 

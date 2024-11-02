@@ -3,7 +3,7 @@ interface PlotData {
   y: number;
 }
 
-interface Plot {
+export interface Plot {
   labelX: string;
   labelY: string;
   data: PlotData[];

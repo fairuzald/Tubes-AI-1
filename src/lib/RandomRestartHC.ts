@@ -1,8 +1,11 @@
-class RandomRestartHC extends LocalSearch {
+import { LocalSearch } from "./LocalSearch";
+import { MagicCube } from "./MagicCube";
+
+export class RandomRestartHC extends LocalSearch {
   // Search state
   private cube: MagicCube;
   private restartCount: number;
-  private iterationCount: number[]; //number iteration each restart
+  private iterationCount: number[]; // number iteration each restart
 
   // Constructor
   constructor(cube: MagicCube) {

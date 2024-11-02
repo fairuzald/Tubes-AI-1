@@ -2,7 +2,7 @@
 type Position = [number, number, number];
 
 // MagicCube class for representing the cube and its basic operations
-class MagicCube {
+export class MagicCube {
   private cube: number[][][];
   private m: number;
 
