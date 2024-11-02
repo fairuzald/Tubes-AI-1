@@ -14,6 +14,7 @@ export class RandomRestartHC extends LocalSearch {
   private restartCount: number;
   private maxRestarts: number;
   private iterationCounter: number[]; // number iteration each restart
+  private bestObjectiveFunction: number;
 
   // Constructor
   constructor(cube: MagicCube, maxRestarts: number) {
@@ -22,6 +23,7 @@ export class RandomRestartHC extends LocalSearch {
     this.restartCount = 0;
     this.iterationCounter = [];
     this.maxRestarts = maxRestarts;
+    this.bestObjectiveFunction = -Infinity;
   }
 
   public solve() {
@@ -57,6 +59,9 @@ export class RandomRestartHC extends LocalSearch {
           else {
             isLocalOptimum = true;
           }
+          if (currentValue > this.bestObjectiveFunction) {
+            this.bestObjectiveFunction = currentValue;
+          }
           this.iterationCounter.push(iterationNumber);
         }
         // Move to neighbor for better value
@@ -75,12 +80,15 @@ export class RandomRestartHC extends LocalSearch {
   public toSearchDto(): RandomRestartSearchDto {
     return {
       duration: this.getDuration(),
-      finalStateValue: this.getFinalObjectiveFunction(),
-      iterationCount: this.iterationCounter.reduce((sum, count) => sum + count, 0),
+      finalStateValue: this.bestObjectiveFunction,
+      iterationCount: this.iterationCounter.reduce(
+        (sum, count) => sum + count,
+        0
+      ),
       states: this.getStates(),
       restartCount: this.restartCount,
       iterationCounter: this.iterationCounter,
-      plots: [this.getObjectiveFunctionPlot()]
+      plots: [this.getObjectiveFunctionPlot()],
     };
   }
 }
