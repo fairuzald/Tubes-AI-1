@@ -26,7 +26,7 @@ export const convertToCSV = (matrices: number[][][][]) => {
   return csvContent;
 };
 
-export const renderStateCSV = (text: string, size:number): number[][][][] => {
+export const renderStateCSV = (text: string, size: number): number[][][][] => {
   const lines = text.split("\n").filter((line) => line.trim() !== "");
 
   const matrices: number[][][][] = [];
@@ -54,4 +54,36 @@ export const renderStateCSV = (text: string, size:number): number[][][][] => {
   });
 
   return matrices;
+};
+
+export const downloadCSV = (matrices?: number[][][][]) => {
+  if (!matrices) {
+    return;
+  }
+  const csvContent = convertToCSV(matrices);
+
+  // Prompt user for filename
+  let filename =
+    window.prompt("Enter a filename for your CSV:", "matrix_coordinates") ||
+    "matrix_coordinates"; // Use default if null or empty
+
+  // Add .csv extension if not present
+  if (!filename.toLowerCase().endsWith(".csv")) {
+    filename += ".csv";
+  }
+
+  // Create a Blob with the CSV content
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+
+  // Create a temporary link and trigger download
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+
+  // Clean up
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 };

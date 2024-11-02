@@ -1,7 +1,9 @@
 "use client";
-import { CustomLineChart } from "@/components/CustomLineChart";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -11,194 +13,343 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import Visualizer from "@/components/Visualizer";
 import { cn } from "@/lib/utils";
-import { convertToCSV, renderStateCSV } from "@/utils/state-processor";
-import { useState, useRef } from "react";
+import { ALGORITHMS, AlgorithmType } from "@/constant/data";
+import { downloadCSV, renderStateCSV } from "@/utils/state-processor";
+import { CustomLineChart } from "@/components/CustomLineChart";
+import Visualizer from "@/components/Visualizer";
+import PlaybackControls from "@/components/PlaybackControlsProps";
+import { RandomRestartSearchDto } from "@/lib/RandomRestartHC";
 
-const generateDefaultMatrix = (): number[][][] => {
-  const matrix: number[][][] = [];
-  let value = 1;
+interface Plot {
+  data: Array<{ x: number; y: number }>;
+  labelX: string;
+  labelY: string;
+}
 
-  for (let z = 0; z < 5; z++) {
-    const plane: number[][] = [];
-    for (let y = 0; y < 5; y++) {
-      const row: number[] = [];
-      for (let x = 0; x < 5; x++) {
-        row.push(value);
-        value++;
-      }
-      plane.push(row);
-    }
-    matrix.push(plane);
-  }
+interface State {
+  selectedAlgorithm: AlgorithmType | null;
+  isLoading: boolean;
+  magicCubes: number[][][][] | null;
+  currentStep: number;
+  isPlaying: boolean;
+  playbackSpeed: number;
+  fileData: File | null;
+  plots: Plot[] | null;
+  finalValue: number | null;
+  duration: number;
+}
 
-  return matrix;
+// Initial state configuration
+const initialState: State = {
+  selectedAlgorithm: null,
+  isLoading: false,
+  magicCubes: null,
+  currentStep: 0,
+  isPlaying: false,
+  playbackSpeed: 1,
+  fileData: null,
+  plots: null,
+  finalValue: null,
+  duration: 0,
 };
 
-const downloadCSV = () => {
-  const matrix = generateDefaultMatrix();
-  // Creating an array of three matrices for example
-  const matrices = [matrix, matrix, matrix];
-  const csvContent = convertToCSV(matrices);
-
-  // Create a Blob with the CSV content
-  const blob = new Blob([csvContent], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-
-  // Create a temporary link and trigger download
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", "matrix_coordinates.csv");
-  document.body.appendChild(link);
-  link.click();
-
-  // Clean up
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-};
-
-const playbackSpeeds = [1, 1.25, 1.5, 1.75, 2];
-
-export default function Home() {
-  const [magicCubes, setMagicCubes] = useState<number[][][][] | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const maxStep = magicCubes ? magicCubes.length : 0;
-
+export default function MagicCubeSolver() {
+  // State and refs initialization
+  const [state, setState] = useState<State>(initialState);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const intervalRef = useRef<NodeJS.Timeout>();
 
-  const handleSliderChange = (value: number[]) => {
-    console.log(value);
-    setCurrentStep(value[0]);
+  // Calculate maximum step based on available matrices
+  const maxStep = state.magicCubes ? state.magicCubes.length - 1 : 0;
+
+  /**
+   * Cleanup interval on component unmount
+   */
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  /**
+   * Handle automatic playback of cube states
+   */
+  useEffect(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    if (state.isPlaying && state.magicCubes) {
+      intervalRef.current = setInterval(() => {
+        setState((prev) => {
+          if (prev.currentStep >= maxStep) {
+            clearInterval(intervalRef.current);
+            return { ...prev, isPlaying: false };
+          }
+          return { ...prev, currentStep: prev.currentStep + 1 };
+        });
+      }, 1000 / state.playbackSpeed);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [state.isPlaying, state.playbackSpeed, maxStep, state.magicCubes]);
+
+  /**
+   * Handle slider value changes
+   */
+  const handleSliderChange = useCallback((value: number[]) => {
+    setState((prev) => ({ ...prev, currentStep: value[0] }));
+  }, []);
+
+  /**
+   * Handle step changes (previous/next)
+   */
+  const handleStepChange = useCallback(
+    (direction: "prev" | "next") => () => {
+      setState((prev) => {
+        const newStep =
+          direction === "prev"
+            ? Math.max(0, prev.currentStep - 1)
+            : Math.min(maxStep, prev.currentStep + 1);
+        return { ...prev, currentStep: newStep };
+      });
+    },
+    [maxStep]
+  );
+
+  /**
+   * Fetch data for Random Restart algorithm
+   */
+  const fetchRandomRestartData = async () => {
+    try {
+      const response = await fetch(
+        "/api/local-search/random-restart?maxRestarts=1"
+      );
+      const data: RandomRestartSearchDto = await response.json();
+
+      setState((prev) => ({
+        ...prev,
+        magicCubes: data.states,
+        plots: data.plots,
+        finalValue: data.finalStateValue,
+        duration: data.duration,
+      }));
+    } catch (error) {
+      console.error("Error fetching random restart data:", error);
+      // Handle error appropriately
+    }
   };
+  console.log(state.magicCubes);
+  /**
+   * Handle form submission for solving
+   */
+  const handleSubmit = useCallback(async () => {
+    if (!state.selectedAlgorithm) return;
 
-  const onNext = () => {
-    setCurrentStep((prev) => Math.min(prev + 1, maxStep));
-  };
+    setState((prev) => ({ ...prev, isLoading: true }));
 
-  const onPrev = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 0));
-  };
+    if (state.selectedAlgorithm === ALGORITHMS.RANDOM_RESTART) {
+      await fetchRandomRestartData();
+    }
 
-  const loadCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    setState((prev) => ({ ...prev, isLoading: false }));
+  }, [state.selectedAlgorithm]);
+
+  /**
+   * Handle file loading
+   */
+  const handleFileLoad = useCallback(() => {
+    if (!state.fileData) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const matrices = renderStateCSV(text, 5);
-      setMagicCubes(matrices);
-      setCurrentStep(0); // Reset to first step when loading new data
+      setState((prev) => ({
+        ...prev,
+        magicCubes: matrices,
+        currentStep: 0,
+        isPlaying: false,
+      }));
     };
 
-    reader.readAsText(file);
-  };
+    reader.readAsText(state.fileData);
+  }, [state.fileData]);
 
-  const clearFile = () => {
+  /**
+   * Clear loaded file and reset state
+   */
+  const handleClearFile = useCallback(() => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-    setMagicCubes(null);
-    setCurrentStep(0);
-  };
+    setState((prev) => ({
+      ...prev,
+      magicCubes: null,
+      currentStep: 0,
+      isPlaying: false,
+    }));
+  }, []);
 
-  const chartData = [
-    { x: 1, y: 186 },
-    { x: 2, y: 305 },
-    { x: 3, y: 237 },
-    { x: 4, y: 73 },
-    { x: 5, y: 209 },
-    { x: 6, y: 214 },
-  ];
+  /**
+   * Toggle play/pause state
+   */
+  const handlePlayPause = useCallback(() => {
+    setState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }));
+  }, []);
 
   return (
-    <main className="p-4">
-      <Visualizer
-        matrixNumber={magicCubes?.[currentStep] || generateDefaultMatrix()}
-        width={1000}
-        height={500}
-      />
-      <div className="flex flex-col w-full items-center justify-center max-w-[1200px] m-auto">
-        {/* Slider Component */}
-        <div className="mt-4 mb-4 flex flex-col w-full items-center justify-center gap-4">
-          <Slider
-            defaultValue={[0]}
-            value={[currentStep]}
-            min={0}
-            max={maxStep}
-            step={1}
-            onValueChange={handleSliderChange}
-            className={cn("w-[60%]")}
-            disabled={!magicCubes}
-          />
-          {/* Step info */}
-          <div className="text-sm text-gray-600">
-            Step: {currentStep} / {maxStep}
-          </div>
-          {/* Controls */}
-          <div className="flex w-full items-center justify-center gap-3">
-            {/* Prev */}
-            <Button onClick={onPrev}>{"<<"}</Button>
-            {/* Play/Pause */}
-            <Button onClick={() => setIsPlaying((prev) => !prev)}>
-              {isPlaying ? "Pause" : "Play"}
-            </Button>
-            {/* Playbacks */}
-            <Select>
-              <SelectTrigger className="w-[80px]">
-                <SelectValue placeholder="Select a playbacks" />
+    <main className="px-8 sm:px-10 md:px-14 lg:px-16 2xl:px-20 py-10">
+      {/* Main Title */}
+      <h1 className="text-center text-3xl font-bold mb-6">
+        Diagonal Magic Cube Solver
+      </h1>
+
+      {/* Control Panel */}
+      <div className="m-auto flex flex-col gap-4 items-center justify-center">
+        {/* Algorithm Selection and File Upload */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Algorithm Selection */}
+          <div className="flex flex-col items-center gap-2">
+            <p className="font-bold">Select Algorithm</p>
+            <Select
+              onValueChange={(value) =>
+                setState((prev) => ({
+                  ...prev,
+                  selectedAlgorithm: value as AlgorithmType,
+                }))
+              }
+              defaultValue=""
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Algorithm" />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectLabel>Playbacks</SelectLabel>
-                  {playbackSpeeds.map((speed) => (
-                    <SelectItem key={speed} value={speed.toString()}>
-                      {speed}x
+                  <SelectLabel>Algorithms</SelectLabel>
+                  {Object.values(ALGORITHMS).map((algo) => (
+                    <SelectItem key={algo} value={algo}>
+                      {algo}
                     </SelectItem>
                   ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
-            {/* Next */}
-            <Button onClick={onNext}>{">>"}</Button>
+            <Button onClick={handleSubmit}>Solve</Button>
           </div>
-        </div>
 
-        {/* Content CSV */}
-        <div className="m-auto flex flex-col gap-4 items-center justify-center">
-          <div className="flex space-x-4 m-auto">
-            <Button onClick={downloadCSV}>Download CSV</Button>
-            {!!magicCubes && <Button onClick={clearFile}>Clear</Button>}
-          </div>
-          <div className="flex flex-col">
-            <label className="mb-2">Load CSV File:</label>
+          {/* File Upload */}
+          <div className="flex flex-col items-center gap-2">
+            <label className="font-bold">Load CSV File</label>
             <Input
               type="file"
               accept=".csv"
-              onChange={loadCSV}
+              onChange={(e) =>
+                setState((prev) => ({
+                  ...prev,
+                  fileData: e.target.files?.[0] || null,
+                }))
+              }
               ref={fileInputRef}
               className="border p-2 rounded"
             />
+            <Button onClick={handleFileLoad}>Load</Button>
           </div>
-          {magicCubes && (
-            <div className="mt-4">
-              <p className="text-green-600">
-                Loaded {magicCubes.length} matrices successfully!
-              </p>
-            </div>
-          )}
         </div>
 
-        <div className="w-full mt-10">
-          <CustomLineChart
-            chartData={chartData}
-            cardTitle="Plot"
-            cardDescription="Ini desctiption"
-          />
+        {/* File Status and Actions */}
+        {state.magicCubes && (
+          <>
+            <div>
+              <p className="text-green-600">
+                Loaded {state.magicCubes.length} matrices successfully
+              </p>
+            </div>
+            <div className="flex space-x-4">
+              <Button onClick={() => downloadCSV(state.magicCubes!)}>
+                Download CSV
+              </Button>
+              <Button onClick={handleClearFile}>Clear</Button>
+            </div>
+          </>
+        )}
+
+        {/* Results Display */}
+        {state.finalValue !== null && state.duration !== 0 && (
+          <div className="flex gap-3 items-center justify-center">
+            <p className="font-semibold">
+              Duration:{" "}
+              {Number.isInteger(state.duration)
+                ? state.duration
+                : Math.round(state.duration * 100) / 100}
+              s
+            </p>
+            <p className="font-semibold">Final Value: {state.finalValue}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Visualization Area */}
+      {state.isLoading ? (
+        <Skeleton className="w-[1000px] h-[400px] m-auto mt-4" />
+      ) : (
+        <Visualizer
+          matrixNumber={
+            state.magicCubes ? state.magicCubes[state.currentStep] : null
+          }
+          width={1000}
+          height={400}
+        />
+      )}
+
+      {/* Controls and Plots */}
+      <div className="flex flex-col w-full items-center justify-center max-w-[1000px] m-auto">
+        <div className="mt-4 mb-4 flex flex-col w-full items-center justify-center gap-4">
+          <div className="flex flex-col w-full items-center justify-center gap-4">
+            <Slider
+              defaultValue={[0]}
+              value={[state.currentStep]}
+              min={0}
+              max={maxStep}
+              step={1}
+              onValueChange={handleSliderChange}
+              className={cn("w-[60%]")}
+              disabled={!state.magicCubes || state.isPlaying}
+            />
+            <div className="text-sm text-gray-600">
+              Step: {state.currentStep + 1} / {maxStep + 1}
+            </div>
+            <PlaybackControls
+              isPlaying={state.isPlaying}
+              disabled={!state.magicCubes}
+              onPrev={handleStepChange("prev")}
+              onNext={handleStepChange("next")}
+              onPlayPause={handlePlayPause}
+              onSpeedChange={(value) =>
+                setState((prev) => ({
+                  ...prev,
+                  playbackSpeed: parseFloat(value),
+                }))
+              }
+            />
+          </div>
         </div>
+        {state.plots?.map((plot, index) => (
+          <div key={index} className="w-full mt-10">
+            <CustomLineChart
+              chartData={plot.data}
+              cardTitle={`${plot.labelY} vs ${plot.labelX}`}
+              cardDescription="Algorithm progression over time"
+            />
+          </div>
+        ))}
       </div>
     </main>
   );

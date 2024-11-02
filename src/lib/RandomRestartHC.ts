@@ -3,7 +3,7 @@ import { MagicCube } from "./MagicCube";
 import { SearchDto } from "./SearchDto";
 
 // Create a new interface extending SearchDto
-interface RandomRestartSearchDto extends SearchDto {
+export interface RandomRestartSearchDto extends SearchDto {
   restartCount: number;
   iterationCounter: number[];
 }

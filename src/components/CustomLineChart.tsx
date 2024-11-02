@@ -14,11 +14,8 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { PlotData } from "@/lib/Plot";
 
-interface ChartData {
-  x: number;
-  y: number;
-}
 
 const chartConfig = {
   value: {
@@ -36,7 +33,7 @@ export function CustomLineChart({
   cardTitle?: string;
   cardDescription?: string;
   childrenFooter?: React.ReactNode;
-  chartData: ChartData[];
+  chartData:  PlotData<number, number>[];
 }) {
   return (
     <Card>
