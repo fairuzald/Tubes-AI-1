@@ -1,10 +1,10 @@
-interface PlotData {
-  x: number;
-  y: number;
+export interface PlotData<X, Y> {
+  x: X;
+  y: Y;
 }
 
-export interface Plot {
+export interface Plot<X, Y> {
   labelX: string;
   labelY: string;
-  data: PlotData[];
+  data: PlotData<X, Y>[];
 }
