@@ -1,30 +1,42 @@
 import { LocalSearch } from "./LocalSearch";
 import { MagicCube } from "./MagicCube";
+import { SearchDto } from "./SearchDto";
+
+// Create a new interface extending SearchDto
+interface RandomRestartSearchDto extends SearchDto {
+  restartCount: number;
+  iterationCounter: number[];
+}
 
 export class RandomRestartHC extends LocalSearch {
   // Search state
   private cube: MagicCube;
   private restartCount: number;
-  private iterationCount: number[]; // number iteration each restart
+  private maxRestarts: number;
+  private iterationCounter: number[]; // number iteration each restart
 
   // Constructor
-  constructor(cube: MagicCube) {
-    super();
+  constructor(cube: MagicCube, maxRestarts: number) {
+    super(cube);
     this.cube = cube;
     this.restartCount = 0;
-    this.iterationCount = [];
+    this.iterationCounter = [];
+    this.maxRestarts = maxRestarts;
   }
-  public solve(maxRestarts: number) {
+
+  public solve() {
+    this.startTimer();
+
     do {
       // Initialize a new random cube for each restart
       this.cube.initializeCube();
 
-      //   to detect peak
+      // to detect peak
       let isLocalOptimum = false;
+      let iterationNumber = 0;
 
-      //   Ascent Logic
+      // Ascent Logic
       while (!isLocalOptimum) {
-        let iterationNumber = 0;
         // Get the best neighbor
         const bestNeighbor = this.cube.getBestSuccessor();
 
@@ -32,17 +44,20 @@ export class RandomRestartHC extends LocalSearch {
         const currentValue = this.cube.calculateObjectiveFunction();
         const neighborValue = bestNeighbor.calculateObjectiveFunction();
 
+        this.addStateEntry(this.cube);
+        this.addObjectiveFunctionPlotEntry(iterationNumber, currentValue);
+
         // Goal state
         if (neighborValue <= currentValue) {
           // Global optimum
           if (currentValue === 0) {
             return;
           }
-          //   Stuck local optimum
+          // Stuck local optimum
           else {
             isLocalOptimum = true;
           }
-          this.iterationCount.push(iterationNumber);
+          this.iterationCounter.push(iterationNumber);
         }
         // Move to neighbor for better value
         else {
@@ -52,6 +67,20 @@ export class RandomRestartHC extends LocalSearch {
       }
 
       this.restartCount++;
-    } while (this.restartCount <= maxRestarts);
+    } while (this.restartCount < this.maxRestarts);
+
+    this.endTimer();
+  }
+
+  public toSearchDto(): RandomRestartSearchDto {
+    return {
+      duration: this.getDuration(),
+      finalStateValue: this.getFinalObjectiveFunction(),
+      iterationCount: this.iterationCounter.reduce((sum, count) => sum + count, 0),
+      states: this.getStates(),
+      restartCount: this.restartCount,
+      iterationCounter: this.iterationCounter,
+      plots: [this.getObjectiveFunctionPlot()]
+    };
   }
 }
