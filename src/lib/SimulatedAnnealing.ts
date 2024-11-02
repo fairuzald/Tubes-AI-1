@@ -1,13 +1,16 @@
-class SimulatedAnnealing extends LocalSearch {
+import { LocalSearch } from "./LocalSearch";
+
+export class SimulatedAnnealing extends LocalSearch {
   // Search state
   private cube: MagicCube;
 
   // Plot result
-  private probabilityPlot: Plot;
+  private probabilityPlot: Plot<number, number>;
 
   // Constructor
   constructor(cube: MagicCube) {
-    super();
+    super(cube);
+
     this.cube = cube;
     this.probabilityPlot = {
       labelX: "Iterasi",
@@ -20,16 +23,19 @@ class SimulatedAnnealing extends LocalSearch {
   public solve(
     schedule: (t: number) => number,
     staticProbabilityValue: number | null = null
-  ): MagicCube {
+  ): void {
+    this.startTimer();
+
     let currentState = this.cube;
     let t = 1;
     let temperature = schedule(t);
 
     while (temperature > 0) {
+      const currentStateValue = currentState.calculateObjectiveFunction();
       const nextState = this.cube.generateRandomSuccessor();
-      const deltaE =
-        nextState.calculateObjectiveFunction() -
-        currentState.calculateObjectiveFunction();
+      const nextStateValue = nextState.calculateObjectiveFunction();
+
+      const deltaE = nextStateValue - currentStateValue;
 
       const probability = staticProbabilityValue ?? Math.random();
       const edET = Math.exp(deltaE / temperature);
@@ -37,21 +43,30 @@ class SimulatedAnnealing extends LocalSearch {
         currentState = nextState;
       }
 
+      // Update plot data + history states
+      this.addStateEntry(currentState);
+      this.addIterationCount();
+      this.addObjectiveFunctionPlotEntry(
+        this.iterationCount,
+        currentStateValue
+      );
+      this.addProbabilityPlotEntry(t, edET);
+
+      // Update search state
       t++;
       temperature = schedule(t);
-      this.probabilityPlot.data.push({ x: t, y: edET });
     }
 
-    return currentState;
-  }
-
-  // Get cube state
-  public getCube(): MagicCube {
-    return this.cube;
+    this.endTimer();
   }
 
   // Get plot data
-  public getProbabilityPlot(): Plot {
+  public getProbabilityPlot(): Plot<number, number> {
     return this.probabilityPlot;
+  }
+
+  // Add plot entry
+  private addProbabilityPlotEntry(x: number, y: number) {
+    this.probabilityPlot.data.push({ x, y });
   }
 }
