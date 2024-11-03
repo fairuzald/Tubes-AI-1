@@ -35,7 +35,7 @@ export class SimulatedAnnealing extends LocalSearch {
   }
 
   // Solver
-  public solve(): void {
+  public solve() {
     this.startTimer();
 
     let t = 1;
