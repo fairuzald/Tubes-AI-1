@@ -32,6 +32,7 @@ export default function MagicCubeSolver() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [maxRestart, setMaxRestart] = useState(1);
   const [maxSideways, setMaxSideways] = useState(100);
+  const [nmax, setNmax] = useState(5000);
 
   const maxStep = state.magicCubes ? state.magicCubes.length - 1 : 0;
 
@@ -78,7 +79,7 @@ export default function MagicCubeSolver() {
     } catch (error) {
       console.error("Error fetching steepest ascent data:", error);
     }
-  }
+  };
 
   const fetchSidewaysMoveData = async (sidewaysNumber: number) => {
     try {
@@ -89,6 +90,16 @@ export default function MagicCubeSolver() {
       dispatch({ type: "SET_RANDOM_STATE_SOLUTION", payload: data });
     } catch (error) {
       console.error("Error fetching sideways move data:", error);
+    }
+  };
+
+  const fetchStochasticData = async (nmax : number) => {
+    try {
+      const response = await fetch(`/api/local-search/stochastic?nmax=${nmax}`);
+      const data: SearchDto = await response.json();
+      dispatch({ type: "SET_SOLUTION", payload: data });
+    } catch (error) {
+      console.error("Error fetching stochastic data:", error);
     }
   }
 
@@ -115,8 +126,12 @@ export default function MagicCubeSolver() {
       await fetchSidewaysMoveData(Math.max(1, maxSideways));
     }
 
+    if(state.selectedAlgorithm === ALGORITHMS.STOCHASTIC){
+      await fetchStochasticData(Math.max(1, nmax));
+    }
+
     dispatch({ type: "SET_LOADING", payload: false });
-  }, [maxRestart, maxSideways, state.selectedAlgorithm]);
+  }, [maxRestart, maxSideways, nmax, state.selectedAlgorithm]);
 
   const handleFileLoad = useCallback(() => {
     if (!state.fileData) return;
@@ -192,6 +207,15 @@ export default function MagicCubeSolver() {
                 value={maxSideways}
                 onChange={(e) => setMaxSideways(parseInt(e.target.value))}
                 placeholder="Max Sideways"
+              />
+            )}
+
+            {state.selectedAlgorithm === ALGORITHMS.STOCHASTIC && (
+              <Input
+                type="number"
+                value={nmax}
+                onChange={(e) => setNmax(parseInt(e.target.value))}
+                placeholder="nmax"
               />
             )}
             <Button
