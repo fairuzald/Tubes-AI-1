@@ -31,6 +31,7 @@ export default function MagicCubeSolver() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [maxRestart, setMaxRestart] = useState(1);
+  const [maxSideways, setMaxSideways] = useState(100);
 
   const maxStep = state.magicCubes ? state.magicCubes.length - 1 : 0;
 
@@ -69,6 +70,28 @@ export default function MagicCubeSolver() {
     }
   };
 
+  const fetchSteepestAscentData = async () => {
+    try {
+      const response = await fetch(`/api/local-search/steepest-ascent`)
+      const data: SearchDto = await response.json();
+      dispatch({ type: "SET_SOLUTION", payload: data});
+    } catch (error) {
+      console.error("Error fetching steepest ascent data:", error);
+    }
+  }
+
+  const fetchSidewaysMoveData = async (sidewaysNumber: number) => {
+    try {
+      const response = await fetch(
+        `/api/local-search/sideways?maxSideways=${sidewaysNumber}`
+      );
+      const data: RandomRestartSearchDto = await response.json();
+      dispatch({ type: "SET_RANDOM_STATE_SOLUTION", payload: data });
+    } catch (error) {
+      console.error("Error fetching sideways move data:", error);
+    }
+  }
+
   // Event handlers
   const handleSubmit = useCallback(async () => {
     if (!state.selectedAlgorithm) return;
@@ -84,8 +107,16 @@ export default function MagicCubeSolver() {
       await fetchSimulatedAnnealingData();
     }
 
+    if(state.selectedAlgorithm === ALGORITHMS.STEEPEST_ASCENT){
+      await fetchSteepestAscentData();
+    }
+
+    if(state.selectedAlgorithm === ALGORITHMS.SIDEWAYS_MOVE){
+      await fetchSidewaysMoveData(Math.max(1, maxSideways));
+    }
+
     dispatch({ type: "SET_LOADING", payload: false });
-  }, [maxRestart, state.selectedAlgorithm]);
+  }, [maxRestart, maxSideways, state.selectedAlgorithm]);
 
   const handleFileLoad = useCallback(() => {
     if (!state.fileData) return;
@@ -152,6 +183,15 @@ export default function MagicCubeSolver() {
                 value={maxRestart}
                 onChange={(e) => setMaxRestart(parseInt(e.target.value))}
                 placeholder="Max Restarts"
+              />
+            )}
+
+            {state.selectedAlgorithm === ALGORITHMS.SIDEWAYS_MOVE && (
+              <Input
+                type="number"
+                value={maxSideways}
+                onChange={(e) => setMaxSideways(parseInt(e.target.value))}
+                placeholder="Max Sideways"
               />
             )}
             <Button
