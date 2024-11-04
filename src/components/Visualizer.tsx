@@ -22,29 +22,24 @@ interface VisualizerProps {
   initialRotationSpeed?: number;
 }
 
-// Memoized color generation
-const colorCache = new Map<number, string>();
-const generateColorFromValue = (value: number) => {
-  if (colorCache.has(value)) {
-    return colorCache.get(value)!;
-  }
-  const color = `hsl(${(value * 2) % 360}, 70%, 50%)`;
-  colorCache.set(value, color);
-  return color;
-};
+const generateColorFromValue = (value: number) =>
+  `hsl(${(value * 2) % 360}, 70%, 50%)`;
 
-// Memoized texture generation
-const textureCache = new Map<number, THREE.CanvasTexture>();
-const createTextureForValue = (value: number) => {
-  if (textureCache.has(value)) {
-    return textureCache.get(value)!;
-  }
+const createCubeFaces = (value: number) => {
+  const faces = [
+    { position: [0, 0, 0.51], rotation: [0, 0, 0] },
+    { position: [0, 0, -0.51], rotation: [0, Math.PI, 0] },
+    { position: [0.51, 0, 0], rotation: [0, Math.PI / 2, 0] },
+    { position: [-0.51, 0, 0], rotation: [0, -Math.PI / 2, 0] },
+    { position: [0, 0.51, 0], rotation: [-Math.PI / 2, 0, 0] },
+    { position: [0, -0.51, 0], rotation: [Math.PI / 2, 0, 0] },
+  ];
 
   const canvas = document.createElement("canvas");
   canvas.width = 64;
   canvas.height = 64;
   const context = canvas.getContext("2d");
-  if (!context) return null;
+  if (!context) return [];
 
   context.fillStyle = "white";
   context.font = "32px Arial";
@@ -53,23 +48,21 @@ const createTextureForValue = (value: number) => {
   context.fillText(value.toString(), 32, 32);
 
   const texture = new THREE.CanvasTexture(canvas);
-  textureCache.set(value, texture);
-  return texture;
+  return faces.map(({ position, rotation }) => {
+    const label = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.8, 0.8),
+      new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+      })
+    );
+    label.position.set(...(position as [number, number, number]));
+    label.rotation.set(...(rotation as [number, number, number]));
+    return label;
+  });
 };
-
-// Pre-compute face positions and rotations
-const FACE_CONFIGS = [
-  { position: [0, 0, 0.51], rotation: [0, 0, 0] },
-  { position: [0, 0, -0.51], rotation: [0, Math.PI, 0] },
-  { position: [0.51, 0, 0], rotation: [0, Math.PI / 2, 0] },
-  { position: [-0.51, 0, 0], rotation: [0, -Math.PI / 2, 0] },
-  { position: [0, 0.51, 0], rotation: [-Math.PI / 2, 0, 0] },
-  { position: [0, -0.51, 0], rotation: [Math.PI / 2, 0, 0] },
-] as const;
-
-// Reusable geometries
-const CUBE_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
-const FACE_GEOMETRY = new THREE.PlaneGeometry(0.8, 0.8);
 
 const Visualizer: React.FC<VisualizerProps> = ({
   matrixNumber,
@@ -84,20 +77,18 @@ const Visualizer: React.FC<VisualizerProps> = ({
   const [activeLayer, setActiveLayer] = useState(-1);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Persistent refs
   const sceneRef = useRef<THREE.Scene>();
   const cameraRef = useRef<THREE.PerspectiveCamera>();
   const rendererRef = useRef<THREE.WebGLRenderer>();
   const controlsRef = useRef<OrbitControls>();
   const cubesRef = useRef<THREE.Mesh[]>([]);
   const cubeGroupRef = useRef<THREE.Group>();
-  
-  // Interaction state refs
   const mouseDownRef = useRef(false);
   const lastMousePosition = useRef({ x: 0, y: 0 });
   const lastClickTime = useRef(0);
   const animationFrameRef = useRef<number>();
   const autoRotateRef = useRef(true);
+
   const updateLayerVisibility = useCallback((layerIndex: number) => {
     cubesRef.current.forEach((cube) => {
       const userData = cube.userData as CubeUserData;
@@ -210,48 +201,33 @@ const Visualizer: React.FC<VisualizerProps> = ({
     ]
   );
 
-  // Memoize cube creation for performance
   const createCubes = useCallback(() => {
-    if (!matrixNumber || !sceneRef.current) return;
+    if (!matrixNumber) return;
+    const scene = sceneRef.current;
+    if (!scene) return;
 
-    // Clear existing cubes
-    if (cubeGroupRef.current) {
-      cubeGroupRef.current.clear();
-      cubesRef.current.forEach(cube => {
-        cube.geometry.dispose();
-        (cube.material as THREE.Material).dispose();
-      });
-      cubesRef.current = [];
-    }
-
+    const spacing = 1.2;
     const cubeGroup = new THREE.Group();
     cubeGroupRef.current = cubeGroup;
     const cubes: THREE.Mesh[] = [];
-    const spacing = 1.2;
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
 
     const offset = (matrixNumber.length - 1) * spacing * 0.5;
-    const plainModeOffsetX = (matrixNumber[0][0].length * spacing * (matrixNumber.length - 1)) / 2;
+    const plainModeOffsetX =
+      (matrixNumber[0][0].length * spacing * (matrixNumber.length - 1)) / 2;
     const plainModeOffsetY = (matrixNumber[0].length * spacing) / 2;
-
-    // Use object pooling for materials
-    const materialPool = new Map<string, THREE.MeshPhongMaterial>();
 
     matrixNumber.forEach((layer, z) => {
       layer.forEach((row, y) => {
         row.forEach((value, x) => {
-          const color = generateColorFromValue(value);
-          let material = materialPool.get(color);
-          
-          if (!material) {
-            material = new THREE.MeshPhongMaterial({
-              color,
+          const cube = new THREE.Mesh(
+            geometry,
+            new THREE.MeshPhongMaterial({
+              color: generateColorFromValue(value),
               transparent: true,
               opacity: 0.8,
-            });
-            materialPool.set(color, material);
-          }
-
-          const cube = new THREE.Mesh(CUBE_GEOMETRY, material);
+            })
+          );
 
           const originalPosition = new THREE.Vector3(
             x * spacing - offset,
@@ -260,6 +236,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
           );
 
           const explodedPosition = originalPosition.clone().multiplyScalar(1.5);
+
           const plainPosition = new THREE.Vector3(
             x * spacing + z * (row.length * spacing) - plainModeOffsetX,
             y * spacing - plainModeOffsetY,
@@ -275,24 +252,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
             value,
           };
 
-          // Create face labels efficiently
-          const texture = createTextureForValue(value);
-          if (texture) {
-            const faceMaterial = new THREE.MeshBasicMaterial({
-              map: texture,
-              transparent: true,
-              opacity: 0.9,
-              side: THREE.DoubleSide,
-            });
-
-            FACE_CONFIGS.forEach(({ position, rotation }) => {
-              const face = new THREE.Mesh(FACE_GEOMETRY, faceMaterial);
-              face.position.set(...position as [number, number, number]);
-              face.rotation.set(...rotation as [number, number, number]);
-              cube.add(face);
-            });
-          }
-
+          createCubeFaces(value).forEach((face) => cube.add(face));
           cubes.push(cube);
           cubeGroup.add(cube);
         });
@@ -300,10 +260,9 @@ const Visualizer: React.FC<VisualizerProps> = ({
     });
 
     cubesRef.current = cubes;
-    sceneRef.current.add(cubeGroup);
+    scene.add(cubeGroup);
   }, [matrixNumber, isPlainMode]);
 
- 
   useEffect(() => {
     const mountNode = mountRef.current;
     const renderer = setupScene(mountNode);

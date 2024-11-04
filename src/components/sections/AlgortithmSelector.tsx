@@ -105,6 +105,7 @@ export const AlgorithmSelector = ({
         <Input
           id="nmax"
           type="number"
+          max={5000}
           value={nmax}
           onChange={(e) => onNmaxChange(parseInt(e.target.value))}
           placeholder="nmax"
