@@ -43,7 +43,12 @@ export default function MagicCubeSolver() {
         dispatch({ type: "SET_PLAYING", payload: false });
         return;
       }
-      dispatch({ type: "SET_CURRENT_STEP", payload: state.currentStep + 1 });
+      // Skip frames if we have too many states
+      const skipFrames = state.magicCubes && state.magicCubes.length > 5000 ? 5 : 1;
+      dispatch({
+        type: "SET_CURRENT_STEP",
+        payload: Math.min(maxStep, state.currentStep + skipFrames),
+      });
     },
     state.isPlaying ? 1000 / state.playbackSpeed : null
   );
