@@ -1,54 +1,151 @@
 import { Plot } from "@/lib/Plot";
 
-// Convert matrices and plots to CSV format
+interface StateMetrics {
+  finalValue?: number | null;
+  duration?: number | null;
+  iterationCount?: number;
+  iterationCounter?: number[];
+  populationCount?: number;
+  restartCount?: number;
+  stuckFrequency?: number;
+}
+
+type MetricKey = keyof StateMetrics;
+
 export const convertToCSV = (
   matrices: number[][][][],
-  plots: Plot<number, number>[]
-): string => {
-  let csvContent = "";
+  plots: Plot<number, number>[],
+  metrics: StateMetrics
+): string[] => {
+  const chunks: string[] = [];
+  const CHUNK_SIZE = 50;
 
-  // For each matrix
-  matrices.forEach((matrix, index) => {
-    const values: number[] = [];
+  // Process matrices in chunks
+  for (let i = 0; i < matrices.length; i += CHUNK_SIZE) {
+    const chunkMatrices = matrices.slice(i, i + CHUNK_SIZE);
+    let chunkContent = "";
 
-    // Flatten the 3D matrix into a 1D array
-    for (let z = 0; z < matrix.length; z++) {
-      for (let y = 0; y < matrix[z].length; y++) {
-        for (let x = 0; x < matrix[z][y].length; x++) {
-          values.push(matrix[z][y][x]);
+    chunkMatrices.forEach((matrix, index) => {
+      const values: number[] = [];
+
+      for (let z = 0; z < matrix.length; z++) {
+        for (let y = 0; y < matrix[z].length; y++) {
+          for (let x = 0; x < matrix[z][y].length; x++) {
+            values.push(matrix[z][y][x]);
+          }
         }
       }
-    }
 
-    // Add the values as a single line
-    csvContent += values.join(",");
-
-    // Add newline if it's not the last matrix
-    if (index < matrices.length - 1) {
-      csvContent += "\n";
-    }
-  });
-
-  csvContent += "\nSPLITTER\n";
-
-  // Add the plot data
-  plots.forEach((plot, index) => {
-    // Add plot headers
-    csvContent += `${plot.labelX},${plot.labelY}\n`;
-
-    // Add plot points
-    plot.data.forEach((point) => {
-      csvContent += `${point.x},${point.y}\n`;
+      chunkContent += values.join(",");
+      if (index < chunkMatrices.length - 1) {
+        chunkContent += "\n";
+      }
     });
 
-    // Add separator between plots if not the last plot
+    chunks.push(chunkContent);
+  }
+
+  // Add plots data
+  let plotChunk = "SPLITTER\n";
+  plots.forEach((plot, index) => {
+    plotChunk += `${plot.labelX},${plot.labelY}\n`;
+    plot.data.forEach((point) => {
+      plotChunk += `${point.x},${point.y}\n`;
+    });
     if (index < plots.length - 1) {
-      csvContent += "\n";
+      plotChunk += "\n";
     }
   });
+  chunks.push(plotChunk);
 
-  return csvContent;
+  // Add metrics data as the final chunk
+  let metricsChunk = "METRICS\n";
+  Object.entries(metrics).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      if (Array.isArray(value)) {
+        metricsChunk += `${key}:${value.join(";")}\n`;
+      } else {
+        metricsChunk += `${key}:${value}\n`;
+      }
+    }
+  });
+  chunks.push(metricsChunk);
+
+  return chunks;
 };
+
+// Type guard to check if a key is array-based metric
+const isArrayMetric = (key: string): key is 'iterationCounter' => {
+  return key === 'iterationCounter';
+};
+interface StateMetrics {
+  finalValue?: number | null;
+  duration?: number | null;
+  iterationCount?: number;
+  iterationCounter?: number[];
+  populationCount?: number;
+  restartCount?: number;
+  stuckFrequency?: number;
+}
+
+// Type guard to check if a key is a valid metric key
+const isValidMetricKey = (key: string): key is MetricKey => {
+  return [
+    'finalValue',
+    'duration',
+    'iterationCount',
+    'iterationCounter',
+    'populationCount',
+    'restartCount',
+    'stuckFrequency'
+  ].includes(key);
+};
+
+
+// Updated download function
+export const downloadCSV = (
+  matrices: number[][][][],
+  plots: Plot<number, number>[],
+  finalValue?: number | null,
+  duration?: number | null,
+  iterationCount?: number,
+  iterationCounter?: number[],
+  populationCount?: number,
+  restartCount?: number,
+  stuckFrequency?: number
+) => {
+  const metrics: StateMetrics = {
+    finalValue,
+    duration,
+    iterationCount,
+    iterationCounter,
+    populationCount,
+    restartCount,
+    stuckFrequency,
+  };
+
+  const chunks = convertToCSV(matrices, plots, metrics);
+
+  let filename =
+    window.prompt("Enter a filename for your CSV:", "magic_cube_state") ||
+    "magic_cube_state";
+  if (!filename.toLowerCase().endsWith(".csv")) {
+    filename += ".csv";
+  }
+
+  const blob = new Blob(chunks, { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
 
 // Parse CSV content back into matrices
 export const renderStateCSV = (text: string, size: number): number[][][][] => {
@@ -82,35 +179,77 @@ export const renderStateCSV = (text: string, size: number): number[][][][] => {
   return matrices;
 };
 
-// Parse CSV content back into plots
-export const parseCSVToPlots = (csvContent: string): Plot<number, number>[] => {
-  const [, plotSection] = csvContent.split("SPLITTER");
-  if (!plotSection) return [];
 
-  const lines = plotSection.trim().split("\n");
+export const parseCSV = (
+  csvContent: string,
+  size: number
+): {
+  matrices: number[][][][];
+  plots: Plot<number, number>[];
+  metrics: StateMetrics;
+} => {
+  // Split the content first by SPLITTER, then find METRICS in the second part if it exists
+  const [matricesPart, restPart = ''] = csvContent.split('SPLITTER');
+  const [plotsPart, metricsPart = ''] = restPart.split('METRICS');
+
+  // Parse matrices
+  const matrices = renderStateCSV(matricesPart.trim(), size);
+
+  // Parse plots - only pass the clean plots section
+  const plots = plotsPart ? parseCSVToPlots(plotsPart.trim()) : [];
+
+  // Parse metrics
+  const metrics: StateMetrics = {};
+  if (metricsPart) {
+    const metricLines = metricsPart.trim().split("\n");
+    metricLines.forEach((line) => {
+      const [key, value] = line.split(":");
+      if (key && value && isValidMetricKey(key)) {
+        if (isArrayMetric(key)) {
+          metrics[key] = value.split(";").map(Number);
+        } else {
+          const numericValue = Number(value);
+          if (!isNaN(numericValue)) {
+            metrics[key] = numericValue;
+          }
+        }
+      }
+    });
+  }
+
+  return { matrices, plots, metrics };
+};
+
+// Updated parseCSVToPlots to be more strict about plot data format
+export const parseCSVToPlots = (plotSection: string): Plot<number, number>[] => {
+  const lines = plotSection.split("\n");
   const plots: Plot<number, number>[] = [];
-
   let currentPlot: Plot<number, number> | null = null;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
-    const [x, y] = line.split(",");
+    const [x, y] = line.split(",").map(val => val.trim());
+    
+    // Skip any lines that might be part of metrics or other sections
+    if (!x || !y || x.includes(':') || y.includes(':')) continue;
 
     // If either value is NaN, this is a header line with labels
     if (isNaN(Number(x)) || isNaN(Number(y))) {
-      // Start a new plot
-      if (currentPlot) {
-        plots.push(currentPlot);
+      // Only create a new plot if both labels are present and don't contain 'METRICS'
+      if (!x.includes('METRICS') && !y.includes('METRICS')) {
+        if (currentPlot) {
+          plots.push(currentPlot);
+        }
+        currentPlot = {
+          labelX: x,
+          labelY: y,
+          data: [],
+        };
       }
-      currentPlot = {
-        labelX: x,
-        labelY: y,
-        data: [],
-      };
     } else {
-      // Add point to current plot
+      // Add point to current plot only if we have a valid plot context
       if (currentPlot) {
         currentPlot.data.push({
           x: Number(x),
@@ -120,96 +259,10 @@ export const parseCSVToPlots = (csvContent: string): Plot<number, number>[] => {
     }
   }
 
-  // Add the last plot
-  if (currentPlot) {
+  // Add the last plot if it's valid
+  if (currentPlot && currentPlot.data.length > 0) {
     plots.push(currentPlot);
   }
 
   return plots;
-};
-
-// Parse entire CSV file content
-export const parseCSV = (
-  csvContent: string,
-  size: number
-): {
-  matrices: number[][][][];
-  plots: Plot<number, number>[];
-} => {
-  const [matricesSection, plotsSection] = csvContent.split("SPLITTER");
-
-  // Parse matrices
-  const matrices = renderStateCSV(matricesSection, size);
-
-  // Parse plots if they exist
-  const plots = plotsSection ? parseCSVToPlots(csvContent) : [];
-
-  return { matrices, plots };
-};
-
-// Download CSV file
-export const downloadCSV = (
-  matrices?: number[][][][],
-  plots?: Plot<number, number>[]
-) => {
-  if (!matrices || !plots) {
-    return;
-  }
-  const csvContent = convertToCSV(matrices, plots);
-
-  // Prompt user for filename
-  let filename =
-    window.prompt("Enter a filename for your CSV:", "matrix_coordinates") ||
-    "matrix_coordinates"; // Use default if null or empty
-
-  // Add .csv extension if not present
-  if (!filename.toLowerCase().endsWith(".csv")) {
-    filename += ".csv";
-  }
-
-  // Create a Blob with the CSV content
-  const blob = new Blob([csvContent], { type: "text/csv" });
-  const url = window.URL.createObjectURL(blob);
-
-  // Create a temporary link and trigger download
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-
-  // Clean up
-  document.body.removeChild(link);
-  window.URL.revokeObjectURL(url);
-};
-
-// Utility function to create an empty 3D matrix of given size
-export const createEmptyMatrix = (size: number): number[][][] => {
-  const matrix: number[][][] = [];
-  for (let z = 0; z < size; z++) {
-    const plane: number[][] = [];
-    for (let y = 0; y < size; y++) {
-      const row: number[] = [];
-      for (let x = 0; x < size; x++) {
-        row.push(0);
-      }
-      plane.push(row);
-    }
-    matrix.push(plane);
-  }
-  return matrix;
-};
-
-// Utility function to validate matrix dimensions
-export const validateMatrix = (matrix: number[][][], size: number): boolean => {
-  if (matrix.length !== size) return false;
-
-  for (const plane of matrix) {
-    if (plane.length !== size) return false;
-    for (const row of plane) {
-      if (row.length !== size) return false;
-    }
-  }
-
-  return true;
 };

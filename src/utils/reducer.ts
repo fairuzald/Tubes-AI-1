@@ -29,10 +29,10 @@ interface State {
 }
 
 export interface MetricProps {
-  finalStateValue: number;
-  duration: number;
-  iterationCount: number;
-  stuckLocalOptimaCounter: number;
+  finalStateValue?: number;
+  duration?: number;
+  iterationCount?: number;
+  stuckLocalOptimaCounter?: number;
 }
 
 // Action types
@@ -138,7 +138,7 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         finalValue: action.payload.finalStateValue,
-        duration: action.payload.duration,
+        duration: action.payload.duration ?? null,
         stuckFrequency: action.payload.stuckLocalOptimaCounter,
         iterationCount: action.payload.iterationCount,
       };

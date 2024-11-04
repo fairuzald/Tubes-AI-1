@@ -19,6 +19,7 @@ import { useAlgorithms } from "@/hooks/useAlgorithms";
 import { ResultsDisplay } from "@/components/sections/ResultDisplay";
 import { FileUploader } from "@/components/sections/FileUploader";
 import { AlgorithmSelector } from "@/components/sections/AlgortithmSelector";
+import { RandomRestartSearchDto } from "@/lib/RandomRestartHC";
 
 export default function MagicCubeSolver() {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -47,9 +48,8 @@ export default function MagicCubeSolver() {
 
   // Stream processor
   const processStreamedData = useStreamProcessor({
-    onMetricsUpdate: (metrics) => 
-      dispatch({ type: "SET_METRICS", payload: metrics })
-    ,
+    onMetricsUpdate: (metrics) =>
+      dispatch({ type: "SET_METRICS", payload: metrics }),
     onStatesUpdate: (states) =>
       dispatch({ type: "SET_MAGIC_CUBES", payload: states }),
     onPlotsUpdate: (plots) => dispatch({ type: "SET_PLOTS", payload: plots }),
@@ -63,7 +63,9 @@ export default function MagicCubeSolver() {
     fetchStochasticData,
     fetchGeneticData,
   } = useAlgorithms((data) =>
-    dispatch({ type: "SET_SOLUTION", payload: data })
+    state.selectedAlgorithm === ALGORITHMS.RANDOM_RESTART
+      ? dispatch({ type: "SET_RANDOM_STATE_SOLUTION", payload: data as RandomRestartSearchDto })
+      : dispatch({ type: "SET_SOLUTION", payload: data })
   );
 
   // Handle form submission
@@ -138,9 +140,41 @@ export default function MagicCubeSolver() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const data = parseCSV(text, 5);
-      dispatch({ type: "SET_MAGIC_CUBES", payload: data.matrices });
-      dispatch({ type: "SET_PLOTS", payload: data.plots });
+      const { matrices, plots, metrics } = parseCSV(text, 5);
+
+      // Set matrices and plots
+      dispatch({ type: "SET_MAGIC_CUBES", payload: matrices });
+      dispatch({ type: "SET_PLOTS", payload: plots });
+
+      // If we have Random Restart metrics, use SET_RANDOM_STATE_SOLUTION
+      if (
+        metrics.restartCount !== undefined ||
+        metrics.iterationCounter !== undefined
+      ) {
+        dispatch({
+          type: "SET_RANDOM_STATE_SOLUTION",
+          payload: {
+            states: matrices,
+            plots: plots,
+            finalStateValue: metrics.finalValue ?? 0,
+            duration: metrics.duration ?? 0,
+            restartCount: metrics.restartCount ?? 0,
+            iterationCount: metrics.iterationCount ?? 0,
+            iterationCounter: metrics.iterationCounter ?? [],
+          },
+        });
+      } else {
+        // For other algorithms, use SET_METRICS
+        dispatch({
+          type: "SET_METRICS",
+          payload: {
+            finalStateValue: metrics.finalValue ?? undefined,
+            duration: metrics.duration ?? undefined,
+            iterationCount: metrics.iterationCount,
+            stuckLocalOptimaCounter: metrics.stuckFrequency,
+          },
+        });
+      }
     };
 
     reader.readAsText(state.fileData);
@@ -204,12 +238,24 @@ export default function MagicCubeSolver() {
           <>
             <div>
               <p className="text-green-600">
-                Loaded {state.magicCubes.length} matrices successfully
+                Loaded {state.magicCubes.length - 1} matrices successfully
               </p>
             </div>
             <div className="flex space-x-4">
               <Button
-                onClick={() => downloadCSV(state.magicCubes!, state.plots!)}
+                onClick={() =>
+                  downloadCSV(
+                    state.magicCubes!,
+                    state.plots!,
+                    state.finalValue,
+                    state.duration,
+                    state.iterationCount,
+                    state.iterationCounter,
+                    state.populationCount,
+                    state.restartCount,
+                    state.stuckFrequency
+                  )
+                }
               >
                 Download CSV
               </Button>
@@ -256,10 +302,12 @@ export default function MagicCubeSolver() {
                   dispatch({ type: "SET_CURRENT_STEP", payload: value[0] })
                 }
                 className={cn("w-[60%]")}
-                disabled={!state.magicCubes || state.isPlaying || state.isLoading}
+                disabled={
+                  !state.magicCubes || state.isPlaying || state.isLoading
+                }
               />
               <div className="text-sm text-gray-600">
-                Step: {state.currentStep + 1} / {maxStep + 1}
+                Step: {state.currentStep} / {maxStep}
               </div>
               <PlaybackControls
                 isPlaying={state.isPlaying}
