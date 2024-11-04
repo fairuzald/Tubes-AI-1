@@ -40,6 +40,7 @@ export class MagicCube {
   public setElement(pos: Position, val: number) {
     const [i, j, k] = pos;
     this.cube[i][j][k] = val;
+    this.dirty = true;
   }
 
   public initializeCube(): void {
