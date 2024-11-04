@@ -12,8 +12,20 @@ interface State {
   playbackSpeed: number;
   fileData: File | null;
   plots: Plot<number, number>[] | null;
-  finalValue: number | null;
-  duration: number;
+  finalValue?: number | null;
+  duration: number | null;
+  // Ascent, Genetic, Sideways, and Stochastic Hill Climbing
+  iterationCount?: number;
+
+  // Random Restart Hill Climbing
+  restartCount?: number;
+  iterationCounter?: number[];
+
+  // Simulated Annealing
+  stuckFrequency?: number;
+
+  // Genetic Algorithm
+  populationCount?: number;
 }
 
 // Action types
@@ -28,6 +40,10 @@ type Action =
   | { type: "SET_PLOTS"; payload: Plot<number, number>[] }
   | { type: "SET_RANDOM_STATE_SOLUTION"; payload: RandomRestartSearchDto }
   | { type: "SET_SOLUTION"; payload: SearchDto }
+  | {
+      type: "SET_METRICS";
+      payload: { finalValue: number; duration: number; iterationCount: number };
+    }
   | { type: "RESET_STATE" }
   | { type: "CLEAR_CUBES" };
 
@@ -42,7 +58,7 @@ const initialState: State = {
   fileData: null,
   plots: null,
   finalValue: null,
-  duration: 0,
+  duration: null,
 };
 
 // Reducer function
@@ -74,6 +90,9 @@ function reducer(state: State, action: Action): State {
         plots: action.payload.plots,
         finalValue: action.payload.finalStateValue,
         duration: action.payload.duration,
+        restartCount: action.payload.restartCount,
+        iterationCounter: action.payload.iterationCounter,
+        iterationCount: undefined,
         currentStep: 0,
         isPlaying: false,
       };
@@ -87,7 +106,12 @@ function reducer(state: State, action: Action): State {
         isPlaying: false,
         plots: null,
         finalValue: null,
-        duration: 0,
+        duration: null,
+        iterationCount: undefined,
+        restartCount: undefined,
+        iterationCounter: undefined,
+        stuckFrequency: undefined,
+        populationCount: undefined,
       };
     case "SET_PLOTS":
       return { ...state, plots: action.payload };
@@ -98,8 +122,16 @@ function reducer(state: State, action: Action): State {
         plots: action.payload.plots,
         finalValue: action.payload.finalStateValue,
         duration: action.payload.duration,
+        iterationCount: action.payload.iterationCount,
         currentStep: 0,
         isPlaying: false,
+      };
+    case "SET_METRICS":
+      return {
+        ...state,
+        finalValue: action.payload.finalValue,
+        duration: action.payload.duration,
+        iterationCount: action.payload.iterationCount,
       };
     default:
       return state;

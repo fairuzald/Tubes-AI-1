@@ -25,6 +25,7 @@ import { useInterval } from "@/hooks/useInterval";
 import { SearchDto } from "@/lib/SearchDto";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Plot } from "@/lib/Plot";
 
 export default function MagicCubeSolver() {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -33,6 +34,7 @@ export default function MagicCubeSolver() {
   const [maxRestart, setMaxRestart] = useState(1);
   const [maxSideways, setMaxSideways] = useState(100);
   const [nmax, setNmax] = useState(5000);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const maxStep = state.magicCubes ? state.magicCubes.length - 1 : 0;
 
@@ -49,6 +51,63 @@ export default function MagicCubeSolver() {
   );
 
   // API handlers
+  const processStreamedData = async (
+    reader: ReadableStreamDefaultReader<Uint8Array>
+  ) => {
+    const decoder = new TextDecoder();
+    const states: number[][][][] = [];
+    const plots: Plot<number,number>[] = [];
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const messages = chunk.split("\n").filter(Boolean);
+
+        for (const message of messages) {
+          const data = JSON.parse(message);
+
+          switch (data.type) {
+            case "metrics":
+              dispatch({
+                type: "SET_METRICS",
+                payload: {
+                  finalValue: data.data.finalStateValue,
+                  duration: data.data.duration,
+                  iterationCount: data.data.iterationCount,
+                },
+              });
+              break;
+
+            case "states":
+              states[data.index] = data.data;
+              dispatch({ type: "SET_MAGIC_CUBES", payload: states });
+              break;
+
+            case "plots":
+              plots.push(...data.data);
+              if (data.index + data.data.length >= data.total) {
+                dispatch({ type: "SET_PLOTS", payload: plots });
+              }
+              break;
+
+            case "complete":
+              console.log("Stream completed at:", new Date(data.timestamp));
+              break;
+
+            case "error":
+              console.error("Stream error:", data.message);
+              break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error processing stream:", error);
+    }
+  };
+
   const fetchRandomRestartData = async (restartNumber: number) => {
     try {
       const response = await fetch(
@@ -61,21 +120,36 @@ export default function MagicCubeSolver() {
     }
   };
 
-  const fetchSimulatedAnnealingData = async () => {
+  const fetchSimulatedAnnealingStream = async () => {
     try {
-      const response = await fetch(`/api/local-search/simulated-annealing`);
-      const data: SearchDto = await response.json();
-      dispatch({ type: "SET_SOLUTION", payload: data });
+      // Cancel any existing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller
+      abortControllerRef.current = new AbortController();
+
+      const response = await fetch("/api/local-search/simulated-annealing", {
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = response.body.getReader();
+      await processStreamedData(reader);
     } catch (error) {
-      console.error("Error fetching random restart data:", error);
+      console.error("Error fetching simulated annealing data:", error);
     }
   };
 
   const fetchSteepestAscentData = async () => {
     try {
-      const response = await fetch(`/api/local-search/steepest-ascent`)
+      const response = await fetch(`/api/local-search/steepest-ascent`);
       const data: SearchDto = await response.json();
-      dispatch({ type: "SET_SOLUTION", payload: data});
+      dispatch({ type: "SET_SOLUTION", payload: data });
     } catch (error) {
       console.error("Error fetching steepest ascent data:", error);
     }
@@ -86,14 +160,14 @@ export default function MagicCubeSolver() {
       const response = await fetch(
         `/api/local-search/sideways?maxSideways=${sidewaysNumber}`
       );
-      const data: RandomRestartSearchDto = await response.json();
-      dispatch({ type: "SET_RANDOM_STATE_SOLUTION", payload: data });
+      const data: SearchDto = await response.json();
+      dispatch({ type: "SET_SOLUTION", payload: data });
     } catch (error) {
       console.error("Error fetching sideways move data:", error);
     }
   };
 
-  const fetchStochasticData = async (nmax : number) => {
+  const fetchStochasticData = async (nmax: number) => {
     try {
       const response = await fetch(`/api/local-search/stochastic?nmax=${nmax}`);
       const data: SearchDto = await response.json();
@@ -101,7 +175,7 @@ export default function MagicCubeSolver() {
     } catch (error) {
       console.error("Error fetching stochastic data:", error);
     }
-  }
+  };
 
   // Event handlers
   const handleSubmit = useCallback(async () => {
@@ -115,18 +189,18 @@ export default function MagicCubeSolver() {
       await fetchRandomRestartData(Math.max(1, maxRestart));
     }
     if (state.selectedAlgorithm === ALGORITHMS.SIMULATED_ANNEALING) {
-      await fetchSimulatedAnnealingData();
+      await fetchSimulatedAnnealingStream();
     }
 
-    if(state.selectedAlgorithm === ALGORITHMS.STEEPEST_ASCENT){
+    if (state.selectedAlgorithm === ALGORITHMS.STEEPEST_ASCENT) {
       await fetchSteepestAscentData();
     }
 
-    if(state.selectedAlgorithm === ALGORITHMS.SIDEWAYS_MOVE){
+    if (state.selectedAlgorithm === ALGORITHMS.SIDEWAYS_MOVE) {
       await fetchSidewaysMoveData(Math.max(1, maxSideways));
     }
 
-    if(state.selectedAlgorithm === ALGORITHMS.STOCHASTIC){
+    if (state.selectedAlgorithm === ALGORITHMS.STOCHASTIC) {
       await fetchStochasticData(Math.max(1, nmax));
     }
 
@@ -270,8 +344,9 @@ export default function MagicCubeSolver() {
         )}
 
         {/* Result Information */}
-        {state.finalValue !== null && state.duration !== 0 && (
-          <div className="flex gap-3 items-center justify-center">
+        {state.finalValue && state.duration && (
+          <div className="flex flex-wrap gap-3 items-center justify-center">
+            {/* Duration */}
             <p className="font-semibold">
               Duration:{" "}
               {Number.isInteger(state.duration)
@@ -279,7 +354,33 @@ export default function MagicCubeSolver() {
                 : Math.round(state.duration * 100) / 100}
               s
             </p>
-            <p className="font-semibold">Final Value: {state.finalValue}</p>
+            {/* Objective Function */}
+            <p className="font-semibold">
+              Final Objective Function Value: {state.finalValue}
+            </p>
+            {/* Iteration Count */}
+            {state.iterationCount && (
+              <p className="font-semibold">
+                Iteration Count: {state.iterationCount}
+              </p>
+            )}
+            {/* Random Restart Restart Count */}
+            {state.restartCount && (
+              <p className="font-semibold">
+                Random Restart Count: {state.restartCount}
+              </p>
+            )}
+          </div>
+        )}
+        {/* Random Restart Iteration Count */}
+        {state.iterationCounter && state.iterationCounter.length > 0 && (
+          <div className="flex flex-col gap-0 text-center">
+            <p className="font-semibold">Iteration Count per Restart</p>{" "}
+            {state.iterationCounter.map((iteration, index) => (
+              <p key={index} className="font-semibold">
+                Iteration {index + 1}, Count: {iteration}
+              </p>
+            ))}
           </div>
         )}
       </div>
