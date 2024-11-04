@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { PropsWithChildren } from "react";
 import "./globals.css";
+import { Toaster } from "@/components/ui/toaster";
 
 // Font configuration
 const poppins = Poppins({
@@ -86,7 +87,6 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
-
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
     <html lang="en" className={poppins.variable} suppressHydrationWarning>
@@ -95,6 +95,8 @@ export default function RootLayout({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" href="/apple-icon.png" type="image/png" />
       </head>
       <body className={`antialiased font-poppins bg-background min-h-screen`}>
+        {" "}
+        <Toaster />
         <div className="relative flex min-h-screen flex-col">
           <main className="flex-1">{children}</main>
         </div>

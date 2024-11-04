@@ -105,7 +105,7 @@ export const AlgorithmSelector = ({
       </>
     )}
     <Button disabled={disabled} onClick={onSubmit}>
-      Load
+      Solve
     </Button>
   </div>
 );

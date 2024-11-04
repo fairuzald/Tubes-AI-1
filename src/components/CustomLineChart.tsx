@@ -29,11 +29,15 @@ export function CustomLineChart({
   cardTitle,
   cardDescription,
   chartData,
+  labelY,
+  labelX,
 }: {
   cardTitle?: string;
   cardDescription?: string;
   childrenFooter?: React.ReactNode;
   chartData:  PlotData<number, number>[];
+  labelY: string;
+  labelX: string;
 }) {
   return (
     <Card>
@@ -56,7 +60,8 @@ export function CustomLineChart({
           >
             <CartesianGrid vertical={false} />
             <XAxis
-              dataKey="x"
+              dataKey={"x"}
+              name={labelX}
               tickLine={false}
               axisLine={false}
               tickMargin={8}
@@ -66,7 +71,8 @@ export function CustomLineChart({
               content={<ChartTooltipContent indicator="line" />}
             />
             <Line
-              dataKey="y"
+              dataKey={"y"}
+              name={labelY}
               type="natural"
               stroke="var(--color-value)"
               strokeWidth={2}

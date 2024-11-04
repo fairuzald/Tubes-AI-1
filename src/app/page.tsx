@@ -20,6 +20,7 @@ import { ResultsDisplay } from "@/components/sections/ResultDisplay";
 import { FileUploader } from "@/components/sections/FileUploader";
 import { AlgorithmSelector } from "@/components/sections/AlgortithmSelector";
 import { RandomRestartSearchDto } from "@/lib/RandomRestartHC";
+import useMobile from "@/hooks/useMobile";
 
 export default function MagicCubeSolver() {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -31,6 +32,7 @@ export default function MagicCubeSolver() {
   const [populationCount, setPopulationCount] = useState(100);
   const [iterations, setIterations] = useState(100);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { width, isMobile } = useMobile();
 
   const maxStep = state.magicCubes ? state.magicCubes.length - 1 : 0;
 
@@ -64,7 +66,10 @@ export default function MagicCubeSolver() {
     fetchGeneticData,
   } = useAlgorithms((data) =>
     state.selectedAlgorithm === ALGORITHMS.RANDOM_RESTART
-      ? dispatch({ type: "SET_RANDOM_STATE_SOLUTION", payload: data as RandomRestartSearchDto })
+      ? dispatch({
+          type: "SET_RANDOM_STATE_SOLUTION",
+          payload: data as RandomRestartSearchDto,
+        })
       : dispatch({ type: "SET_SOLUTION", payload: data })
   );
 
@@ -233,6 +238,7 @@ export default function MagicCubeSolver() {
           />
         </div>
 
+
         {/* Results Display */}
         {state.magicCubes && (
           <>
@@ -276,19 +282,25 @@ export default function MagicCubeSolver() {
 
       {/* Visualization */}
       {state.isLoading ? (
-        <Skeleton className="w-[1000px] h-[400px] m-auto mt-4" />
+        <Skeleton
+          className="m-auto mt-4"
+          style={{
+            width: isMobile ? width - 40 : 960,
+            height: isMobile ? width : 400,
+          }}
+        />
       ) : (
         <Visualizer
           matrixNumber={
             state.magicCubes ? state.magicCubes[state.currentStep] : null
           }
-          width={1000}
-          height={400}
+          width={isMobile ? width - 40 : 1000}
+          height={isMobile ? width : 400}
         />
       )}
 
       {/* Controls and Plots */}
-      <div className="flex flex-col w-full items-center justify-center max-w-[1000px] m-auto">
+      <div className="flex flex-col w-[90%] items-center justify-center max-w-[1000px] m-auto">
         {state.magicCubes && state.magicCubes.length > 0 && (
           <div className="mt-4 mb-4 flex flex-col w-full items-center justify-center gap-4">
             <div className="flex flex-col w-full items-center justify-center gap-4">
@@ -347,6 +359,8 @@ export default function MagicCubeSolver() {
         {state.plots?.map((plot, index) => (
           <div key={index} className="w-full mt-10">
             <CustomLineChart
+              labelX={plot.labelX}
+              labelY={plot.labelY}
               chartData={plot.data}
               cardTitle={`${plot.labelY} vs ${plot.labelX}`}
               cardDescription="Algorithm progression over time"

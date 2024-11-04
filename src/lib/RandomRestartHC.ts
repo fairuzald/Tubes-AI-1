@@ -1,10 +1,12 @@
 import { LocalSearch } from "./LocalSearch";
 import { MagicCube } from "./MagicCube";
+import { Plot } from "./Plot";
 import { SearchDto } from "./SearchDto";
 
 export interface RandomRestartSearchDto extends SearchDto {
   restartCount: number;
   iterationCounter: number[];
+  plots: Plot<number, number>[];
 }
 
 export class RandomRestartHC extends LocalSearch {
@@ -12,21 +14,33 @@ export class RandomRestartHC extends LocalSearch {
   private restartCount = 0;
   private iterationCounter: number[] = [];
   private bestObjectiveFunction = -Infinity;
+  private plots: Plot<number, number>[] = [];
+  private currentPlotData: { x: number; y: number }[] = [];
 
   constructor(private cube: MagicCube, maxRestarts: number) {
     super(cube);
     this.maxRestarts = maxRestarts;
   }
 
-  // Random Restart Hill Climbing
   public solve(): void {
     this.startTimer();
+    this.plots = []; // Reset plots at the start
 
-    // Perform restarts until global optimum is found
     while (this.restartCount < this.maxRestarts) {
+      // Initialize new plot data for this restart
+      this.currentPlotData = [];
+
       if (this.performSingleRestart()) {
-        return; // Found global optimum
+        break; // Found global optimum
       }
+
+      // After each restart, create a plot entry
+      this.plots.push({
+        labelX: `Iteration Number, Number Restart ${this.restartCount + 1}`,
+        labelY: "Objective Function Value",
+        data: [...this.currentPlotData],
+      });
+
       this.restartCount++;
     }
 
@@ -42,16 +56,14 @@ export class RandomRestartHC extends LocalSearch {
       const bestNeighbor = this.cube.getBestSuccessor();
       const neighborValue = bestNeighbor.calculateObjectiveFunction();
 
+      // Record current state for plotting
       this.updateSearchState(iterationNumber, currentValue);
 
-      // If no better neighbor found
       if (neighborValue <= currentValue) {
-        // Update state
         this.handlePeak(currentValue, iterationNumber);
         return currentValue === 0; // Return true if global optimum found
       }
 
-      // Move to best neighbor
       this.cube = bestNeighbor;
       iterationNumber++;
     }
@@ -62,7 +74,12 @@ export class RandomRestartHC extends LocalSearch {
     currentValue: number
   ): void {
     this.addStateEntry(this.cube);
-    this.addObjectiveFunctionPlotEntry(iterationNumber, currentValue);
+
+    // Add data point for current iteration
+    this.currentPlotData.push({
+      x: iterationNumber,
+      y: currentValue,
+    });
   }
 
   private handlePeak(currentValue: number, iterationNumber: number): void {
@@ -80,8 +97,12 @@ export class RandomRestartHC extends LocalSearch {
       states: this.getStates(),
       restartCount: this.restartCount,
       iterationCounter: this.iterationCounter,
-      plots: [this.getObjectiveFunctionPlot()],
+      plots: this.plots, // Return all plots for all restarts
     };
+  }
+
+  public getPlots(): Plot<number, number>[] {
+    return this.plots;
   }
 
   private calculateTotalIterations(): number {
