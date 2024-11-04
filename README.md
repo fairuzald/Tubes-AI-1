@@ -77,9 +77,9 @@ pnpm dev
 
 # Pembagian Tugas Kelompok
 
-| No  | Nama                        | NIM        | Tugas                                                 |
-| --- | --------------------------- | ---------- | ----------------------------------------------------- |
-| 1   | [Dewantoro Triatmojo]       | [13522011] | [Simulated Annealing]                                 |
-| 2   | [Renaldy Arief Susanto]     | [13522022] | [Genetic Algorithm]                                   |
-| 3   | [Moh Fairuz Alauddin Yahya] | [13522057] | [Frontend, Random Restart, Bonus Video]               |
-| 4   | [Rayhan Fadhlan Azka]       | [13522095] | [Steepest Ascent Hill Climbing, Sideways, Stochastic] |
+| No  | Nama                      | NIM      | Tugas                                               |
+| --- | ------------------------- | -------- | --------------------------------------------------- |
+| 1   | Dewantoro Triatmojo       | 13522011 | Simulated Annealing                                 |
+| 2   | Renaldy Arief Susanto     | 13522022 | Genetic Algorithm                                   |
+| 3   | Moh Fairuz Alauddin Yahya | 13522057 | Frontend, Random Restart, Bonus Video               |
+| 4   | Rayhan Fadhlan Azka       | 13522095 | Steepest Ascent Hill Climbing, Sideways, Stochastic |

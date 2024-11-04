@@ -248,7 +248,7 @@ export default function MagicCubeSolver() {
           <>
             <div>
               <p className="text-green-600">
-                Loaded {state.magicCubes.length - 1} matrices successfully
+                Loaded {state.magicCubes.length - 1} cubes successfully
               </p>
             </div>
             <div className="flex space-x-4">

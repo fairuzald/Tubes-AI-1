@@ -118,7 +118,7 @@ export const GET = async (req: NextRequest) => {
       const plotDataBatchSize = 62500 * 5;
       console.log("Sending objective function plot data");
       const objectiveFunctionPlotData =
-        simulatedAnnealing.getAggregatedObjectiveFunctionPlot(100000).data;
+        simulatedAnnealing.getAggregatedObjectiveFunctionPlot(100).data;
       for (
         let i = 0;
         i < objectiveFunctionPlotData.length;
@@ -145,7 +145,7 @@ export const GET = async (req: NextRequest) => {
       // probability plot data
       console.log("Sending probability plot data");
       const probabilityPlotData =
-        simulatedAnnealing.getAggregatedProbabilityPlot(100000).data;
+        simulatedAnnealing.getAggregatedProbabilityPlot(100).data;
       for (let i = 0; i < probabilityPlotData.length; i += plotDataBatchSize) {
         const endSlice = Math.min(
           i + plotDataBatchSize,
