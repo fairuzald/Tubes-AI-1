@@ -1,4 +1,3 @@
-import { Console } from "console";
 
 // Position type for cube coordinates
 type Position = [number, number, number];
