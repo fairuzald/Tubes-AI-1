@@ -1,3 +1,5 @@
+import { Console } from "console";
+
 // Position type for cube coordinates
 type Position = [number, number, number];
 
@@ -5,8 +7,11 @@ type Position = [number, number, number];
 export class MagicCube {
   private cube: number[][][];
   private m: number;
+  private objval: number;
+  private dirty: boolean;
 
   constructor(initialValue: number[][][] | null = null) {
+    
     this.m = 5;
 
     if (initialValue) {
@@ -16,6 +21,11 @@ export class MagicCube {
       this.cube = [];
       this.initializeCube();
     }
+
+    this.dirty = true;
+    this.objval = this.calculateObjectiveFunction();
+    // console.log("Created a cube with first arr:")
+    // console.log(this.cube[0][0]);
   }
 
   public getElement(pos: Position) {
@@ -66,6 +76,7 @@ export class MagicCube {
   }
 
   public swap(pos1: Position, pos2: Position): void {
+    this.dirty = true;
     const [i1, j1, k1] = pos1;
     const [i2, j2, k2] = pos2;
     const temp = this.cube[i1][j1][k1];
@@ -160,6 +171,10 @@ export class MagicCube {
   }
 
   public calculateObjectiveFunction(): number {
+    
+    if (!this.dirty) return this.objval;
+    this.dirty = false;
+    
     const magicNumber = (this.m * (Math.pow(this.m, 3) + 1)) / 2;
     let totalDeviation = 0;
 
@@ -169,6 +184,7 @@ export class MagicCube {
       totalDeviation += lineSum === magicNumber ? 0 : -1;
     }
 
+    this.objval = totalDeviation;
     return totalDeviation;
   }
 
