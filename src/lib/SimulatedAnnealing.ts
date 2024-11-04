@@ -93,6 +93,17 @@ export class SimulatedAnnealing extends LocalSearch {
     return this.probabilityPlot;
   }
 
+  // Get aggregated plot data
+  public getAggregatedProbabilityPlot(n: number): Plot<number, number> {
+    const aggregatedData = this.aggregatePlotData(this.probabilityPlot.data, n);
+
+    return {
+      labelX: this.probabilityPlot.labelX,
+      labelY: this.probabilityPlot.labelY,
+      data: aggregatedData,
+    };
+  }
+
   // Get stuck local optima counter
   public getStuckLocalOptimaCounter(): number {
     return this.stuckLocalOptimaCounter;
