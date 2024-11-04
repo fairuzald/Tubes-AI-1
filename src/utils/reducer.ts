@@ -28,6 +28,12 @@ interface State {
   populationCount?: number;
 }
 
+export interface MetricProps {
+  finalValue: number;
+  duration: number;
+  iterationCount: number;
+}
+
 // Action types
 type Action =
   | { type: "SET_ALGORITHM"; payload: AlgorithmType }
@@ -42,7 +48,7 @@ type Action =
   | { type: "SET_SOLUTION"; payload: SearchDto }
   | {
       type: "SET_METRICS";
-      payload: { finalValue: number; duration: number; iterationCount: number };
+      payload: MetricProps;
     }
   | { type: "RESET_STATE" }
   | { type: "CLEAR_CUBES" };

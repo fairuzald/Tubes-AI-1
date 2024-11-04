@@ -54,7 +54,6 @@ export const GET = async () => {
     temp <= initialTempRange.end;
     temp += initialTempRange.step
   ) {
-    console.log(temp);
 
     for (
       let alpha = alphaRange.start;

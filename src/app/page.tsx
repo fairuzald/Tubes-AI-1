@@ -1,31 +1,24 @@
 "use client";
+
 import { useCallback, useRef, useReducer, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { ALGORITHMS, AlgorithmType } from "@/constant/data";
+import { ALGORITHMS } from "@/constant/data";
 import { downloadCSV, parseCSV } from "@/utils/state-processor";
 import { CustomLineChart } from "@/components/CustomLineChart";
 import Visualizer from "@/components/Visualizer";
 import PlaybackControls from "@/components/PlaybackControlsProps";
-import { RandomRestartSearchDto } from "@/lib/RandomRestartHC";
-import { initialState, reducer } from "@/utils/reducer";
 import { useInterval } from "@/hooks/useInterval";
-import { SearchDto } from "@/lib/SearchDto";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Plot } from "@/lib/Plot";
+import { initialState, reducer } from "@/utils/reducer";
+import { useStreamProcessor } from "@/hooks/useStreamProcessor";
+import { useAlgorithms } from "@/hooks/useAlgorithms";
+import { ResultsDisplay } from "@/components/sections/ResultDisplay";
+import { FileUploader } from "@/components/sections/FileUploader";
+import { AlgorithmSelector } from "@/components/sections/AlgortithmSelector";
 
 export default function MagicCubeSolver() {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -50,163 +43,82 @@ export default function MagicCubeSolver() {
     state.isPlaying ? 1000 / state.playbackSpeed : null
   );
 
-  // API handlers
-  const processStreamedData = async (
-    reader: ReadableStreamDefaultReader<Uint8Array>
-  ) => {
-    const decoder = new TextDecoder();
-    const states: number[][][][] = [];
-    const plots: Plot<number,number>[] = [];
+  // Stream processor
+  const processStreamedData = useStreamProcessor({
+    onMetricsUpdate: (metrics) =>
+      dispatch({ type: "SET_METRICS", payload: metrics }),
+    onStatesUpdate: (states) =>
+      dispatch({ type: "SET_MAGIC_CUBES", payload: states }),
+    onPlotsUpdate: (plots) => dispatch({ type: "SET_PLOTS", payload: plots }),
+  });
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+  // Algorithm hooks
+  const {
+    fetchRandomRestartData,
+    fetchSimulatedAnnealingStream,
+    fetchSidewaysMoveData,
+    fetchSteepestAscentData,
+    fetchStochasticData,
+  } = useAlgorithms((data) =>
+    dispatch({ type: "SET_SOLUTION", payload: data })
+  );
 
-        const chunk = decoder.decode(value);
-        const messages = chunk.split("\n").filter(Boolean);
-
-        for (const message of messages) {
-          const data = JSON.parse(message);
-
-          switch (data.type) {
-            case "metrics":
-              dispatch({
-                type: "SET_METRICS",
-                payload: {
-                  finalValue: data.data.finalStateValue,
-                  duration: data.data.duration,
-                  iterationCount: data.data.iterationCount,
-                },
-              });
-              break;
-
-            case "states":
-              states[data.index] = data.data;
-              dispatch({ type: "SET_MAGIC_CUBES", payload: states });
-              break;
-
-            case "plots":
-              plots.push(...data.data);
-              if (data.index + data.data.length >= data.total) {
-                dispatch({ type: "SET_PLOTS", payload: plots });
-              }
-              break;
-
-            case "complete":
-              console.log("Stream completed at:", new Date(data.timestamp));
-              break;
-
-            case "error":
-              console.error("Stream error:", data.message);
-              break;
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error processing stream:", error);
-    }
-  };
-
-  const fetchRandomRestartData = async (restartNumber: number) => {
-    try {
-      const response = await fetch(
-        `/api/local-search/random-restart?maxRestarts=${restartNumber}`
-      );
-      const data: RandomRestartSearchDto = await response.json();
-      dispatch({ type: "SET_RANDOM_STATE_SOLUTION", payload: data });
-    } catch (error) {
-      console.error("Error fetching random restart data:", error);
-    }
-  };
-
-  const fetchSimulatedAnnealingStream = async () => {
-    try {
-      // Cancel any existing request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      // Create new abort controller
-      abortControllerRef.current = new AbortController();
-
-      const response = await fetch("/api/local-search/simulated-annealing", {
-        signal: abortControllerRef.current.signal,
-      });
-
-      if (!response.body) {
-        throw new Error("No response body");
-      }
-
-      const reader = response.body.getReader();
-      await processStreamedData(reader);
-    } catch (error) {
-      console.error("Error fetching simulated annealing data:", error);
-    }
-  };
-
-  const fetchSteepestAscentData = async () => {
-    try {
-      const response = await fetch(`/api/local-search/steepest-ascent`);
-      const data: SearchDto = await response.json();
-      dispatch({ type: "SET_SOLUTION", payload: data });
-    } catch (error) {
-      console.error("Error fetching steepest ascent data:", error);
-    }
-  };
-
-  const fetchSidewaysMoveData = async (sidewaysNumber: number) => {
-    try {
-      const response = await fetch(
-        `/api/local-search/sideways?maxSideways=${sidewaysNumber}`
-      );
-      const data: SearchDto = await response.json();
-      dispatch({ type: "SET_SOLUTION", payload: data });
-    } catch (error) {
-      console.error("Error fetching sideways move data:", error);
-    }
-  };
-
-  const fetchStochasticData = async (nmax: number) => {
-    try {
-      const response = await fetch(`/api/local-search/stochastic?nmax=${nmax}`);
-      const data: SearchDto = await response.json();
-      dispatch({ type: "SET_SOLUTION", payload: data });
-    } catch (error) {
-      console.error("Error fetching stochastic data:", error);
-    }
-  };
-
-  // Event handlers
+  // Handle form submission
   const handleSubmit = useCallback(async () => {
     if (!state.selectedAlgorithm) return;
 
+    // Clear previous data
     dispatch({ type: "CLEAR_CUBES" });
-
     dispatch({ type: "SET_LOADING", payload: true });
 
-    if (state.selectedAlgorithm === ALGORITHMS.RANDOM_RESTART) {
-      await fetchRandomRestartData(Math.max(1, maxRestart));
+    try {
+      // Fetch data based on selected algorithm
+      switch (state.selectedAlgorithm) {
+        // Random Restart
+        case ALGORITHMS.RANDOM_RESTART:
+          await fetchRandomRestartData(Math.max(1, maxRestart));
+          break;
+        // Simulated Annealing
+        case ALGORITHMS.SIMULATED_ANNEALING:
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+          }
+          abortControllerRef.current = new AbortController();
+          await fetchSimulatedAnnealingStream(
+            abortControllerRef.current,
+            processStreamedData
+          );
+          break;
+        // Steepest Ascent
+        case ALGORITHMS.STEEPEST_ASCENT:
+          await fetchSteepestAscentData();
+          break;
+        // Sideways Move
+        case ALGORITHMS.SIDEWAYS_MOVE:
+          await fetchSidewaysMoveData(Math.max(1, maxSideways));
+          break;
+        // Stochastic Hill Climbing
+        case ALGORITHMS.STOCHASTIC:
+          await fetchStochasticData(Math.max(1, nmax));
+          break;
+      }
+    } finally {
+      dispatch({ type: "SET_LOADING", payload: false });
     }
-    if (state.selectedAlgorithm === ALGORITHMS.SIMULATED_ANNEALING) {
-      await fetchSimulatedAnnealingStream();
-    }
+  }, [
+    maxRestart,
+    state.selectedAlgorithm,
+    fetchRandomRestartData,
+    fetchSimulatedAnnealingStream,
+    processStreamedData,
+    fetchSteepestAscentData,
+    fetchSidewaysMoveData,
+    maxSideways,
+    fetchStochasticData,
+    nmax,
+  ]);
 
-    if (state.selectedAlgorithm === ALGORITHMS.STEEPEST_ASCENT) {
-      await fetchSteepestAscentData();
-    }
-
-    if (state.selectedAlgorithm === ALGORITHMS.SIDEWAYS_MOVE) {
-      await fetchSidewaysMoveData(Math.max(1, maxSideways));
-    }
-
-    if (state.selectedAlgorithm === ALGORITHMS.STOCHASTIC) {
-      await fetchStochasticData(Math.max(1, nmax));
-    }
-
-    dispatch({ type: "SET_LOADING", payload: false });
-  }, [maxRestart, maxSideways, nmax, state.selectedAlgorithm]);
-
+  // Handle file load
   const handleFileLoad = useCallback(() => {
     if (!state.fileData) return;
 
@@ -221,6 +133,7 @@ export default function MagicCubeSolver() {
     reader.readAsText(state.fileData);
   }, [state.fileData]);
 
+  // Handle clear file
   const handleClearFile = useCallback(() => {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -239,89 +152,34 @@ export default function MagicCubeSolver() {
       </div>
 
       <div className="m-auto flex flex-col gap-4 items-center justify-center">
+        {/* Process Data Params */}
         <div className="grid grid-cols-2 gap-4">
-          {/* Algorithm Selection */}
-          <div className="flex flex-col items-center gap-2">
-            <p className="font-bold">Select Algorithm</p>
-            <Select
-              onValueChange={(value) =>
-                dispatch({
-                  type: "SET_ALGORITHM",
-                  payload: value as AlgorithmType,
-                })
-              }
-              defaultValue={""}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Algorithm" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Algorithms</SelectLabel>
-                  {Object.values(ALGORITHMS).map((algo) => (
-                    <SelectItem key={algo} value={algo}>
-                      {algo}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {state.selectedAlgorithm === ALGORITHMS.RANDOM_RESTART && (
-              <Input
-                type="number"
-                value={maxRestart}
-                onChange={(e) => setMaxRestart(parseInt(e.target.value))}
-                placeholder="Max Restarts"
-              />
-            )}
+          {/* Using Algorithm */}
+          <AlgorithmSelector
+            onAlgorithmChange={(algo) =>
+              dispatch({ type: "SET_ALGORITHM", payload: algo })
+            }
+            maxRestart={maxRestart}
+            onMaxRestartChange={setMaxRestart}
+            maxSideways={maxSideways}
+            onMaxSidewaysChange={setMaxSideways}
+            nmax={nmax}
+            onNmaxChange={setNmax}
+            selectedAlgorithm={state.selectedAlgorithm}
+            disabled={state.isLoading}
+            onSubmit={handleSubmit}
+          />
 
-            {state.selectedAlgorithm === ALGORITHMS.SIDEWAYS_MOVE && (
-              <Input
-                type="number"
-                value={maxSideways}
-                onChange={(e) => setMaxSideways(parseInt(e.target.value))}
-                placeholder="Max Sideways"
-              />
-            )}
-
-            {state.selectedAlgorithm === ALGORITHMS.STOCHASTIC && (
-              <Input
-                type="number"
-                value={nmax}
-                onChange={(e) => setNmax(parseInt(e.target.value))}
-                placeholder="nmax"
-              />
-            )}
-            <Button
-              disabled={!state.selectedAlgorithm || state.isLoading}
-              onClick={handleSubmit}
-            >
-              Solve
-            </Button>
-          </div>
-
-          {/* File Upload */}
-          <div className="flex flex-col items-center gap-2">
-            <label className="font-bold">Load CSV File</label>
-            <Input
-              type="file"
-              accept=".csv"
-              onChange={(e) =>
-                dispatch({
-                  type: "SET_FILE_DATA",
-                  payload: e.target.files?.[0] || null,
-                })
-              }
-              ref={fileInputRef}
-              className="border p-2 rounded"
-            />
-            <Button
-              disabled={!state.fileData || state.isLoading}
-              onClick={handleFileLoad}
-            >
-              Load
-            </Button>
-          </div>
+          {/* File Uploader */}
+          <FileUploader
+            onFileChange={(file) =>
+              dispatch({ type: "SET_FILE_DATA", payload: file })
+            }
+            onLoad={handleFileLoad}
+            fileData={state.fileData}
+            isLoading={state.isLoading}
+            fileInputRef={fileInputRef}
+          />
         </div>
 
         {/* Results Display */}
@@ -343,46 +201,13 @@ export default function MagicCubeSolver() {
           </>
         )}
 
-        {/* Result Information */}
-        {state.finalValue && state.duration && (
-          <div className="flex flex-wrap gap-3 items-center justify-center">
-            {/* Duration */}
-            <p className="font-semibold">
-              Duration:{" "}
-              {Number.isInteger(state.duration)
-                ? state.duration
-                : Math.round(state.duration * 100) / 100}
-              s
-            </p>
-            {/* Objective Function */}
-            <p className="font-semibold">
-              Final Objective Function Value: {state.finalValue}
-            </p>
-            {/* Iteration Count */}
-            {state.iterationCount && (
-              <p className="font-semibold">
-                Iteration Count: {state.iterationCount}
-              </p>
-            )}
-            {/* Random Restart Restart Count */}
-            {state.restartCount && (
-              <p className="font-semibold">
-                Random Restart Count: {state.restartCount}
-              </p>
-            )}
-          </div>
-        )}
-        {/* Random Restart Iteration Count */}
-        {state.iterationCounter && state.iterationCounter.length > 0 && (
-          <div className="flex flex-col gap-0 text-center">
-            <p className="font-semibold">Iteration Count per Restart</p>{" "}
-            {state.iterationCounter.map((iteration, index) => (
-              <p key={index} className="font-semibold">
-                Iteration {index + 1}, Count: {iteration}
-              </p>
-            ))}
-          </div>
-        )}
+        <ResultsDisplay
+          finalValue={state.finalValue}
+          duration={state.duration}
+          iterationCount={state.iterationCount}
+          restartCount={state.restartCount}
+          iterationCounter={state.iterationCounter}
+        />
       </div>
 
       {/* Visualization */}

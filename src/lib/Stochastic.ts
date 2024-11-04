@@ -17,7 +17,6 @@ export class Stochastic extends LocalSearch {
       const nextState = currentState.generateRandomSuccessor();
       const currentObj = currentState.calculateObjectiveFunction();
       const nextObj = nextState.calculateObjectiveFunction();
-      console.log(nextObj);
 
       const deltaE = nextObj - currentObj;
 

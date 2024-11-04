@@ -32,7 +32,6 @@ export class SidewaysMove extends LocalSearch {
             const currentObj = currentState.calculateObjectiveFunction();
             const nextObj = nextState.calculateObjectiveFunction();
 
-            console.log(currentObj, nextObj);
             const deltaE = nextObj - currentObj;
 
             this.addStateEntry(currentState);

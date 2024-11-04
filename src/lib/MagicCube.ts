@@ -229,7 +229,6 @@ export class MagicCube {
 
     const newCube = this.clone();
     newCube.swap(pos1, pos2);
-    // console.log(pos1, pos2);
     return newCube;
   }
 

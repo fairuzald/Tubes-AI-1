@@ -25,8 +25,6 @@ export class SteepestAscent extends LocalSearch{
 
             const deltaE = nextObj - currentObj;
 
-            console.log(nextObj);
-
             this.addStateEntry(currentState);
             this.addObjectiveFunctionPlotEntry(this.iterationCount, currentObj);
 
