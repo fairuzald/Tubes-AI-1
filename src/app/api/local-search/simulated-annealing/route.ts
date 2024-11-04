@@ -73,9 +73,11 @@ export const GET = async (req: NextRequest) => {
         const endSlice = Math.min(i + stateBatchSize, states.length);
 
         const batch = states.slice(i, endSlice);
+        const batchIdx = Math.floor(i / stateBatchSize);
 
         await writer.write({
           type: "states",
+          index: batchIdx,
           data: batch,
         });
 
@@ -126,10 +128,11 @@ export const GET = async (req: NextRequest) => {
         );
 
         const batch = objectiveFunctionPlotData.slice(i, endSlice);
+        const batchIdx = Math.floor(i / plotDataBatchSize);
 
         await writer.write({
           type: "objectiveFunctionPlotData",
-          index: i,
+          index: batchIdx,
           data: batch,
         });
 
@@ -147,10 +150,11 @@ export const GET = async (req: NextRequest) => {
         );
 
         const batch = probabilityPlotData.slice(i, endSlice);
+        const batchIdx = Math.floor(i / plotDataBatchSize);
 
         await writer.write({
           type: "probabilityPlotData",
-          index: i,
+          index: batchIdx,
           data: batch,
         });
 
