@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { MagicCube } from "@/lib/MagicCube";
 import { SteepestAscent } from "@/lib/SteepestAscent";
 import { NextResponse } from "next/server";

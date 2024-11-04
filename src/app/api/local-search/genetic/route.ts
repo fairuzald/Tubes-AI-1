@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { GeneticAlgorithm } from "@/lib/GeneticAlgorithm"
 import { NextRequest, NextResponse } from "next/server";
 

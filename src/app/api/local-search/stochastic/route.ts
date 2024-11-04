@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { MagicCube } from "@/lib/MagicCube"
 import { Stochastic } from "@/lib/Stochastic";
 

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { MagicCube } from "@/lib/MagicCube"
 import { SidewaysMove } from "@/lib/SidewaysMove";
 import { NextRequest, NextResponse } from "next/server";
