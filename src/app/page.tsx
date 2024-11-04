@@ -27,6 +27,8 @@ export default function MagicCubeSolver() {
   const [maxRestart, setMaxRestart] = useState(1);
   const [maxSideways, setMaxSideways] = useState(100);
   const [nmax, setNmax] = useState(5000);
+  const [populationCount, setPopulationCount] = useState(100);
+  const [iterations, setIterations] = useState(100);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const maxStep = state.magicCubes ? state.magicCubes.length - 1 : 0;
@@ -45,13 +47,14 @@ export default function MagicCubeSolver() {
 
   // Stream processor
   const processStreamedData = useStreamProcessor({
-    onMetricsUpdate: (metrics) =>
-      dispatch({ type: "SET_METRICS", payload: metrics }),
+    onMetricsUpdate: (metrics) => {
+      console.log("ini metrics: ", metrics);
+      dispatch({ type: "SET_METRICS", payload: metrics });
+    },
     onStatesUpdate: (states) =>
       dispatch({ type: "SET_MAGIC_CUBES", payload: states }),
     onPlotsUpdate: (plots) => dispatch({ type: "SET_PLOTS", payload: plots }),
   });
-
   // Algorithm hooks
   const {
     fetchRandomRestartData,
@@ -59,6 +62,7 @@ export default function MagicCubeSolver() {
     fetchSidewaysMoveData,
     fetchSteepestAscentData,
     fetchStochasticData,
+    fetchGeneticData,
   } = useAlgorithms((data) =>
     dispatch({ type: "SET_SOLUTION", payload: data })
   );
@@ -101,14 +105,21 @@ export default function MagicCubeSolver() {
         case ALGORITHMS.STOCHASTIC:
           await fetchStochasticData(Math.max(1, nmax));
           break;
+        // Genetic Algorithm
+        case ALGORITHMS.GENETIC:
+          await fetchGeneticData(
+            Math.max(1, populationCount),
+            Math.max(1, iterations)
+          );
+          break;
       }
     } finally {
       dispatch({ type: "SET_LOADING", payload: false });
     }
   }, [
-    maxRestart,
     state.selectedAlgorithm,
     fetchRandomRestartData,
+    maxRestart,
     fetchSimulatedAnnealingStream,
     processStreamedData,
     fetchSteepestAscentData,
@@ -116,6 +127,9 @@ export default function MagicCubeSolver() {
     maxSideways,
     fetchStochasticData,
     nmax,
+    fetchGeneticData,
+    populationCount,
+    iterations,
   ]);
 
   // Handle file load
@@ -165,8 +179,12 @@ export default function MagicCubeSolver() {
             onMaxSidewaysChange={setMaxSideways}
             nmax={nmax}
             onNmaxChange={setNmax}
+            iterations={iterations}
+            onIterationsChange={setIterations}
+            populationCount={populationCount}
+            onPopulationCountChange={setPopulationCount}
             selectedAlgorithm={state.selectedAlgorithm}
-            disabled={state.isLoading}
+            disabled={state.isLoading || !state.selectedAlgorithm}
             onSubmit={handleSubmit}
           />
 
@@ -206,6 +224,7 @@ export default function MagicCubeSolver() {
           duration={state.duration}
           iterationCount={state.iterationCount}
           restartCount={state.restartCount}
+          stuckFrequency={state.stuckFrequency}
           iterationCounter={state.iterationCounter}
         />
       </div>

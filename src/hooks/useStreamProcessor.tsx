@@ -1,6 +1,6 @@
 import { Plot } from "@/lib/Plot";
 import { MetricProps } from "@/utils/reducer";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 interface StreamProcessorProps {
   onMetricsUpdate: (metrics: MetricProps) => void;
@@ -8,46 +8,114 @@ interface StreamProcessorProps {
   onPlotsUpdate: (plots: Plot<number, number>[]) => void;
 }
 
+interface PlotData {
+  objectiveFunctionPlot: Plot<number, number> | null;
+  probabilityPlot: Plot<number, number> | null;
+  states: number[][][][];
+  stuckCounter: number;
+}
+
 export const useStreamProcessor = ({
   onMetricsUpdate,
   onStatesUpdate,
   onPlotsUpdate,
 }: StreamProcessorProps) => {
-  return useCallback(async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
-    const decoder = new TextDecoder();
-    const states: number[][][][] = [];
-    const plots: Plot<number, number>[] = [];
+  // Use ref to maintain data between renders and avoid race conditions
+  const plotDataRef = useRef<PlotData>({
+    objectiveFunctionPlot: null,
+    probabilityPlot: null,
+    states: [],
+    stuckCounter: 0,
+  });
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+  const updatePlotsIfReady = useCallback(() => {
+    const { objectiveFunctionPlot, probabilityPlot } = plotDataRef.current;
+    if (objectiveFunctionPlot && probabilityPlot) {
+      onPlotsUpdate([objectiveFunctionPlot, probabilityPlot]);
+    }
+  }, [onPlotsUpdate]);
 
-        const chunk = decoder.decode(value);
-        const messages = chunk.split("\n").filter(Boolean);
+  const processStreamedData = useCallback(
+    async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+      const decoder = new TextDecoder();
+      let buffer = ""; // Buffer for incomplete messages
 
-        for (const message of messages) {
-          const data = JSON.parse(message);
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-          switch (data.type) {
-            case "metrics":
-              onMetricsUpdate(data.data);
-              break;
-            case "states":
-              states[data.index] = data.data;
-              onStatesUpdate(states);
-              break;
-            case "plots":
-              plots.push(...data.data);
-              if (data.index + data.data.length >= data.total) {
-                onPlotsUpdate(plots);
+          // Append new chunk to buffer and process complete messages
+          buffer += decoder.decode(value, { stream: true });
+
+          let newlineIndex;
+          while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+            const message = buffer.slice(0, newlineIndex);
+            buffer = buffer.slice(newlineIndex + 1);
+
+            if (!message) continue;
+
+            try {
+              const data = JSON.parse(message);
+
+              switch (data.type) {
+                case "metrics":
+                  onMetricsUpdate(data.data);
+                  break;
+
+                case "states":
+                  // Update states array
+                  plotDataRef.current.states.push(...data.data);
+                  onStatesUpdate(plotDataRef.current.states);
+                  break;
+
+                case "objectiveFunctionPlotMeta":
+                  plotDataRef.current.objectiveFunctionPlot = {
+                    labelX: data.data.labelX,
+                    labelY: data.data.labelY,
+                    data: [],
+                  };
+                  updatePlotsIfReady();
+                  break;
+
+                case "probabilityPlotMeta":
+                  plotDataRef.current.probabilityPlot = {
+                    labelX: data.data.labelX,
+                    labelY: data.data.labelY,
+                    data: [],
+                  };
+                  updatePlotsIfReady();
+                  break;
+
+                case "objectiveFunctionPlotData":
+                  if (plotDataRef.current.objectiveFunctionPlot) {
+                    const plot = plotDataRef.current.objectiveFunctionPlot;
+                    // Ensure ordered insertion of data
+                    plot.data.splice(data.index, 0, ...data.data);
+                    updatePlotsIfReady();
+                  }
+                  break;
+
+                case "probabilityPlotData":
+                  if (plotDataRef.current.probabilityPlot) {
+                    const plot = plotDataRef.current.probabilityPlot;
+                    // Ensure ordered insertion of data
+                    plot.data.splice(data.index, 0, ...data.data);
+                    updatePlotsIfReady();
+                  }
+                  break;
               }
-              break;
+            } catch (error) {
+              console.error("Error parsing message:", error);
+            }
           }
         }
+      } catch (error) {
+        console.error("Error processing stream:", error);
       }
-    } catch (error) {
-      console.error("Error processing stream:", error);
-    }
-  }, [onMetricsUpdate, onStatesUpdate, onPlotsUpdate]);
+    },
+    [onMetricsUpdate, onStatesUpdate, updatePlotsIfReady]
+  );
+
+  return processStreamedData;
 };

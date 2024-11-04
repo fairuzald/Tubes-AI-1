@@ -4,6 +4,7 @@ interface ResultsDisplayProps {
   iterationCount?: number | null;
   restartCount?: number | null;
   iterationCounter?: number[] | null;
+  stuckFrequency?: number | null;
 }
 
 export const ResultsDisplay = ({
@@ -12,6 +13,7 @@ export const ResultsDisplay = ({
   iterationCount,
   restartCount,
   iterationCounter,
+  stuckFrequency,
 }: ResultsDisplayProps) => (
   <>
     {finalValue && duration && (
@@ -31,6 +33,11 @@ export const ResultsDisplay = ({
         )}
         {restartCount && (
           <p className="font-semibold">Random Restart Count: {restartCount}</p>
+        )}
+        {stuckFrequency && (
+          <p className="font-semibold">
+            Stuck Frequency: {stuckFrequency}
+          </p>
         )}
       </div>
     )}

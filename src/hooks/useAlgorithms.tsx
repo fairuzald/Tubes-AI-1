@@ -21,7 +21,12 @@ export const useAlgorithms = (
   );
 
   const fetchSimulatedAnnealingStream = useCallback(
-    async (abortController: AbortController, processStreamedData: (reader: ReadableStreamDefaultReader<Uint8Array>) => Promise<void>) => {
+    async (
+      abortController: AbortController,
+      processStreamedData: (
+        reader: ReadableStreamDefaultReader<Uint8Array>
+      ) => Promise<void>
+    ) => {
       try {
         const response = await fetch("/api/local-search/simulated-annealing", {
           signal: abortController.signal,
@@ -70,11 +75,27 @@ export const useAlgorithms = (
     }
   };
 
+  const fetchGeneticData = async (
+    populationSize?: number,
+    iterations?: number
+  ) => {
+    try {
+      const response = await fetch(
+        `/api/local-search/genetic?population_count=${populationSize}&iterations=${iterations}`
+      );
+      const data: SearchDto = await response.json();
+      onSolutionUpdate(data);
+    } catch (error) {
+      console.error("Error fetching genetic data:", error);
+    }
+  };
+
   return {
     fetchRandomRestartData,
     fetchSimulatedAnnealingStream,
     fetchSteepestAscentData,
     fetchSidewaysMoveData,
+    fetchGeneticData,
     fetchStochasticData,
   };
 };

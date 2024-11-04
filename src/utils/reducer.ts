@@ -29,9 +29,10 @@ interface State {
 }
 
 export interface MetricProps {
-  finalValue: number;
+  finalStateValue: number;
   duration: number;
   iterationCount: number;
+  stuckLocalOptimaCounter: number;
 }
 
 // Action types
@@ -50,6 +51,7 @@ type Action =
       type: "SET_METRICS";
       payload: MetricProps;
     }
+  | { type: "SET_STUCK_FREQUENCY"; payload: number }
   | { type: "RESET_STATE" }
   | { type: "CLEAR_CUBES" };
 
@@ -135,8 +137,9 @@ function reducer(state: State, action: Action): State {
     case "SET_METRICS":
       return {
         ...state,
-        finalValue: action.payload.finalValue,
+        finalValue: action.payload.finalStateValue,
         duration: action.payload.duration,
+        stuckFrequency: action.payload.stuckLocalOptimaCounter,
         iterationCount: action.payload.iterationCount,
       };
     default:

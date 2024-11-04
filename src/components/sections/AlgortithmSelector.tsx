@@ -21,6 +21,10 @@ interface AlgorithmSelectorProps {
   onNmaxChange: (value: number) => void;
   selectedAlgorithm: AlgorithmType | null;
   disabled?: boolean;
+  iterations?: number;
+  onIterationsChange: (value: number) => void;
+  populationCount: number;
+  onPopulationCountChange: (value: number) => void;
   onSubmit: () => void;
 }
 
@@ -35,6 +39,10 @@ export const AlgorithmSelector = ({
   onSubmit,
   onNmaxChange,
   selectedAlgorithm,
+  populationCount,
+  onPopulationCountChange,
+  iterations,
+  onIterationsChange,
 }: AlgorithmSelectorProps) => (
   <div className="flex flex-col items-center gap-2">
     <p className="font-bold">Select Algorithm</p>
@@ -80,10 +88,23 @@ export const AlgorithmSelector = ({
         placeholder="nmax"
       />
     )}
-    <Button
-      disabled={disabled}
-      onClick={onSubmit}
-    >
+    {selectedAlgorithm === ALGORITHMS.GENETIC && (
+      <>
+        <Input
+          type="number"
+          value={iterations}
+          onChange={(e) => onIterationsChange(parseInt(e.target.value))}
+          placeholder="Iterations"
+        />
+        <Input
+          type="number"
+          value={populationCount}
+          onChange={(e) => onPopulationCountChange(parseInt(e.target.value))}
+          placeholder="Population Count"
+        />
+      </>
+    )}
+    <Button disabled={disabled} onClick={onSubmit}>
       Load
     </Button>
   </div>
