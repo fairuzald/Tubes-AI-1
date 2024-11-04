@@ -25,12 +25,10 @@ export const GET = async (req: NextRequest) => {
   // Solve
   simulatedAnnealing.solve();
 
-  const responseDto = simulatedAnnealing.toSearchDto();
-
   console.log(Date.now());
-  console.log(responseDto.duration);
-  console.log(responseDto.finalStateValue);
-  console.log(responseDto.iterationCount);
+  console.log(simulatedAnnealing.getFinalObjectiveFunction());
+  console.log(simulatedAnnealing.getDuration());
+  console.log(simulatedAnnealing.getIterationCount());
 
   const encoder = new TextEncoder();
   const stream = new TransformStream({
@@ -48,9 +46,9 @@ export const GET = async (req: NextRequest) => {
       await writer.write({
         type: "metrics",
         data: {
-          finalStateValue: responseDto.finalStateValue,
-          duration: responseDto.duration,
-          iterationCount: responseDto.iterationCount,
+          finalStateValue: simulatedAnnealing.getFinalObjectiveFunction(),
+          duration: simulatedAnnealing.getDuration(),
+          iterationCount: simulatedAnnealing.getIterationCount(),
         },
       });
       console.log("Metrics sent");
@@ -63,12 +61,11 @@ export const GET = async (req: NextRequest) => {
       // stream per 1 MB = 1000 states
       const stateBatchSize = 5 * 1000;
       console.log("Sending states");
-      for (let i = 0; i < responseDto.states.length; i += stateBatchSize) {
-        const endSlice = Math.min(
-          i + stateBatchSize,
-          responseDto.states.length
-        );
-        const batch = responseDto.states.slice(i, endSlice);
+      const states = simulatedAnnealing.getStates();
+      for (let i = 0; i < states.length; i += stateBatchSize) {
+        const endSlice = Math.min(i + stateBatchSize, states.length);
+
+        const batch = states.slice(i, endSlice);
 
         await writer.write({
           type: "states",
@@ -109,16 +106,19 @@ export const GET = async (req: NextRequest) => {
       // stream per 1 MB = 1000 * 1000 / 16 = 62500 data points
       const plotDataBatchSize = 62500 * 5;
       console.log("Sending objective function plot data");
+      const objectiveFunctionPlotData =
+        simulatedAnnealing.getObjectiveFunctionPlot().data;
       for (
         let i = 0;
-        i < responseDto.plots[1].data.length;
+        i < objectiveFunctionPlotData.length;
         i += plotDataBatchSize
       ) {
         const endSlice = Math.min(
           i + plotDataBatchSize,
-          responseDto.plots[1].data.length
+          objectiveFunctionPlotData.length
         );
-        const batch = responseDto.plots[1].data.slice(i, endSlice);
+
+        const batch = objectiveFunctionPlotData.slice(i, endSlice);
 
         await writer.write({
           type: "objectiveFunctionPlotData",
@@ -132,16 +132,14 @@ export const GET = async (req: NextRequest) => {
 
       // probability plot data
       console.log("Sending probability plot data");
-      for (
-        let i = 0;
-        i < responseDto.plots[0].data.length;
-        i += plotDataBatchSize
-      ) {
+      const probabilityPlotData = simulatedAnnealing.getProbabilityPlot().data;
+      for (let i = 0; i < probabilityPlotData.length; i += plotDataBatchSize) {
         const endSlice = Math.min(
           i + plotDataBatchSize,
-          responseDto.plots[0].data.length
+          probabilityPlotData.length
         );
-        const batch = responseDto.plots[0].data.slice(i, endSlice);
+
+        const batch = probabilityPlotData.slice(i, endSlice);
 
         await writer.write({
           type: "probabilityPlotData",
@@ -177,11 +175,13 @@ export const GET = async (req: NextRequest) => {
     }
   })();
 
+  // Handle the abort signal
   req.signal.onabort = async () => {
     await writer.ready;
     await writer.close();
   };
 
+  // Return the response
   return new Response(stream.readable, {
     headers: {
       "Content-Type": "application/json",
