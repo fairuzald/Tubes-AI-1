@@ -166,9 +166,9 @@ export class GeneticAlgorithm extends LocalSearch
                 while(this.iterations--)
                 {
                         this.addIterationCount();
-                        this.addObjectiveFunctionPlotEntry(this.iterationCount, this.population[this.population_count-1].calculateObjectiveFunction());
                         this.nextGeneration();
-
+                        this.sortPopulation();
+                        this.addObjectiveFunctionPlotEntry(this.iterationCount, this.population[this.population_count-1].calculateObjectiveFunction());
                 }
                 this.sortPopulation();
                 this.addStateEntry(this.population[this.population_count-1]);
@@ -180,13 +180,30 @@ export class GeneticAlgorithm extends LocalSearch
         {
                 this.averagePlot.data.push({ x: iteration, y: value });
         }
+        public getAggregatedAveragePlot(n: number): Plot<number, number> {
+                const aggregatedData = this.aggregatePlotData(
+                        this.averagePlot.data,
+                        n
+                );
+                aggregatedData.sort((a, b) => a.x - b.x);
+
+                console.log(aggregatedData);
+                return {
+                        labelX: this.averagePlot.labelX,
+                        labelY: this.averagePlot.labelY,
+                        data: aggregatedData,
+                };
+        }
+
+        
         public toSearchDto() : SearchDto {
                 return {
                     duration: this.getDuration(),
                     iterationCount : this.getIterationCount(),
                     finalStateValue : this.getFinalObjectiveFunction(),
                     states : this.getStates(),
-                    plots : [this.getObjectiveFunctionPlot(), this.averagePlot]
+                    plots : [this.getAggregatedObjectiveFunctionPlot(this.iterationCount / 10), 
+                             this.getAggregatedAveragePlot(this.iterationCount / 10)]
                 }
         }
 }

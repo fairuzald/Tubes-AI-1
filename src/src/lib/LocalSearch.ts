@@ -148,6 +148,9 @@ export abstract class LocalSearch {
       this.objectiveFunctionPlot.data,
       n
     );
+    aggregatedData.sort((a, b) => a.x - b.x);
+
+    console.log(this.objectiveFunctionPlot.data);
 
     return {
       labelX: this.objectiveFunctionPlot.labelX,
