@@ -1,4 +1,3 @@
-import { SearchDto } from "./SearchDto";
 import { LocalSearch } from "./LocalSearch";
 import { MagicCube } from "./MagicCube";
 import { Plot } from "./Plot";
@@ -14,6 +13,9 @@ export class SimulatedAnnealing extends LocalSearch {
 
   // Plot result
   private probabilityPlot: Plot<number, number>;
+
+  // Stuck local optima counter
+  private stuckLocalOptimaCounter: number;
 
   // Constructor
   constructor(
@@ -32,6 +34,7 @@ export class SimulatedAnnealing extends LocalSearch {
       labelY: "e^(dE/T)",
       data: [],
     };
+    this.stuckLocalOptimaCounter = 0;
   }
 
   // Solver
@@ -47,6 +50,8 @@ export class SimulatedAnnealing extends LocalSearch {
       if (temperature < this.minimumTemperature) break;
 
       const currentStateValue = this.currentState.calculateObjectiveFunction();
+      const nextState = this.currentState.generateRandomSuccessor();
+      const nextStateValue = nextState.calculateObjectiveFunction();
 
       // Update plot data + history states
       this.addStateEntry(this.currentState);
@@ -56,8 +61,10 @@ export class SimulatedAnnealing extends LocalSearch {
         currentStateValue
       );
 
-      const nextState = this.currentState.generateRandomSuccessor();
-      const nextStateValue = nextState.calculateObjectiveFunction();
+      // Update stuck local optima counter
+      if (currentStateValue === nextStateValue) {
+        this.addStuckLocalOptimaCounter();
+      }
 
       const deltaE = nextStateValue - currentStateValue;
       if (deltaE > 0) {
@@ -86,22 +93,19 @@ export class SimulatedAnnealing extends LocalSearch {
     return this.probabilityPlot;
   }
 
+  // Get stuck local optima counter
+  public getStuckLocalOptimaCounter(): number {
+    return this.stuckLocalOptimaCounter;
+  }
+
   // Add plot entry
   private addProbabilityPlotEntry(x: number, y: number) {
     this.probabilityPlot.data.push({ x, y });
   }
 
-  // Convert to DTO
-  public toSearchDto(): SearchDto {
-    const result: SearchDto = {
-      duration: this.getDuration(),
-      iterationCount: this.getIterationCount(),
-      finalStateValue: this.getFinalObjectiveFunction(),
-      states: this.getStates(),
-      plots: [this.getObjectiveFunctionPlot(), this.getProbabilityPlot()],
-    };
-
-    return result;
+  // Add local optima counter
+  private addStuckLocalOptimaCounter() {
+    this.stuckLocalOptimaCounter++;
   }
 }
 

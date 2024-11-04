@@ -25,10 +25,13 @@ export const GET = async (req: NextRequest) => {
   // Solve
   simulatedAnnealing.solve();
 
-  console.log(Date.now());
-  console.log(simulatedAnnealing.getFinalObjectiveFunction());
-  console.log(simulatedAnnealing.getDuration());
-  console.log(simulatedAnnealing.getIterationCount());
+  console.log("Iteration count:", simulatedAnnealing.getIterationCount());
+  console.log("Search Duration: ", simulatedAnnealing.getDuration());
+  console.log("Final result:", simulatedAnnealing.getFinalObjectiveFunction());
+  console.log(
+    "Stuck counter: ",
+    simulatedAnnealing.getStuckLocalOptimaCounter()
+  );
 
   const encoder = new TextEncoder();
   const stream = new TransformStream({
@@ -41,6 +44,8 @@ export const GET = async (req: NextRequest) => {
   // Handle the streaming in a separate async function
   (async () => {
     try {
+      const startStreamingTime = Date.now();
+
       // Send metrics
       console.log("Sending metrics");
       await writer.write({
@@ -49,6 +54,8 @@ export const GET = async (req: NextRequest) => {
           finalStateValue: simulatedAnnealing.getFinalObjectiveFunction(),
           duration: simulatedAnnealing.getDuration(),
           iterationCount: simulatedAnnealing.getIterationCount(),
+          stuckLocalOptimaCounter:
+            simulatedAnnealing.getStuckLocalOptimaCounter(),
         },
       });
       console.log("Metrics sent");
@@ -149,19 +156,16 @@ export const GET = async (req: NextRequest) => {
 
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
-
       console.log("Probability plot data sent");
-
-      // Send completion message
-      console.log("Sending completion message");
-      await writer.write({
-        type: "complete",
-        timestamp: Date.now(),
-      });
-      console.log("Completion message sent");
 
       // Close the writer to end the stream
       await writer.close();
+
+      const endStreamingTime = Date.now();
+      console.log(
+        "Streaming duration:",
+        Math.floor((endStreamingTime - startStreamingTime) / 1000)
+      );
     } catch (error) {
       console.error("Streaming error:", error);
       // Send error message before closing
