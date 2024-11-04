@@ -235,6 +235,19 @@ export class MagicCube {
     return bestSuccessor;
   }
 
+  public getSortedSuccessors(): MagicCube[] {
+    const successors = this.generateAllSuccessors();
+    
+    // Sort successors based on their objective function values
+    successors.sort((a, b) => {
+      const valueA = a.calculateObjectiveFunction();
+      const valueB = b.calculateObjectiveFunction();
+      return valueB - valueA; // Sort in descending order
+    });
+  
+    return successors;
+  }
+
   public generateRandomSuccessor(): MagicCube {
     const positions = this.getAllPositions();
     const pos1 = positions[Math.floor(Math.random() * positions.length)];

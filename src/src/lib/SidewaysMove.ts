@@ -27,7 +27,14 @@ export class SidewaysMove extends LocalSearch {
         this.visitedStates.add(this.serializeState(currentState));
 
         while(currentState.calculateObjectiveFunction() !=  0 && currentSideways < maxSideways){
-            const nextState = currentState.getBestSuccessor();
+
+            let idx = 0;
+            const magicCubes = currentState.getSortedSuccessors();
+            let nextState = magicCubes[idx];
+            while(this.visitedStates.has(this.serializeState(nextState))){
+                idx++;
+                nextState = magicCubes[idx];
+            }
 
             const currentObj = currentState.calculateObjectiveFunction();
             const nextObj = nextState.calculateObjectiveFunction();
