@@ -9,7 +9,8 @@ import { NextResponse, type NextRequest } from "next/server";
 export const GET = async (req: NextRequest) => {
   const magicCube = new MagicCube();
 
-  const minimumTemperature = Number.MIN_VALUE;
+  // const minimumTemperature = Number.MIN_VALUE;
+  const minimumTemperature = 6.67 * 1e-194;
   const initialTemperature = 200;
   const alpha = 0.99955;
   const temperatureFunction = TemperatureFactory.exponentialDecay(

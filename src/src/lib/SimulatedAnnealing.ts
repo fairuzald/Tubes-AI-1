@@ -61,11 +61,6 @@ export class SimulatedAnnealing extends LocalSearch {
         currentStateValue
       );
 
-      // Update stuck local optima counter
-      if (currentStateValue === nextStateValue) {
-        this.addStuckLocalOptimaCounter();
-      }
-
       const deltaE = nextStateValue - currentStateValue;
       if (deltaE > 0) {
         this.currentState = nextState;
@@ -73,7 +68,14 @@ export class SimulatedAnnealing extends LocalSearch {
         const probability = this.staticProbabilityValue ?? Math.random();
         const edET = Math.exp(deltaE / temperature);
         if (edET > probability) {
+          // Do some bad moves
           this.currentState = nextState;
+
+          // Local optima is visited when doing some bad moves
+          if (deltaE < 0) {
+            console.log(this.iterationCount, currentStateValue, nextStateValue);
+            this.addStuckLocalOptimaCounter();
+          }
         }
 
         // Update probability plot

@@ -49,7 +49,7 @@ export class RandomRestartHC extends LocalSearch {
 
   private performSingleRestart(): boolean {
     this.cube = new MagicCube();
-    let iterationNumber = 0;
+    let iterationNumber = 1;
 
     while (true) {
       const currentValue = this.cube.calculateObjectiveFunction();
