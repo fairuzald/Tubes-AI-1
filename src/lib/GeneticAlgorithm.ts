@@ -125,7 +125,7 @@ export class GeneticAlgorithm extends LocalSearch
                 for (let i = 1; i < this.population_count; ++i)
                 chances[i] += chances[i - 1];
                 this.addAveragePlotEntry(this.iterationCount, 
-                        chances[this.population_count-1] / this.population_count);
+                        - chances[this.population_count-1] / this.population_count);
 
                 chances.unshift(0);
                 for (let i = 0; i < this.population_count / 2; i++)
