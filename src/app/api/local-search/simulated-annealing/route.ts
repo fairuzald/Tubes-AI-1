@@ -73,9 +73,11 @@ export const GET = async (req: NextRequest) => {
         const endSlice = Math.min(i + stateBatchSize, states.length);
 
         const batch = states.slice(i, endSlice);
+        const batchIdx = Math.floor(i / stateBatchSize);
 
         await writer.write({
           type: "states",
+          index: batchIdx,
           data: batch,
         });
 
@@ -114,7 +116,7 @@ export const GET = async (req: NextRequest) => {
       const plotDataBatchSize = 62500 * 5;
       console.log("Sending objective function plot data");
       const objectiveFunctionPlotData =
-        simulatedAnnealing.getObjectiveFunctionPlot().data;
+        simulatedAnnealing.getAggregatedObjectiveFunctionPlot(100).data;
       for (
         let i = 0;
         i < objectiveFunctionPlotData.length;
@@ -126,10 +128,11 @@ export const GET = async (req: NextRequest) => {
         );
 
         const batch = objectiveFunctionPlotData.slice(i, endSlice);
+        const batchIdx = Math.floor(i / plotDataBatchSize);
 
         await writer.write({
           type: "objectiveFunctionPlotData",
-          index: i,
+          index: batchIdx,
           data: batch,
         });
 
@@ -139,7 +142,8 @@ export const GET = async (req: NextRequest) => {
 
       // probability plot data
       console.log("Sending probability plot data");
-      const probabilityPlotData = simulatedAnnealing.getProbabilityPlot().data;
+      const probabilityPlotData =
+        simulatedAnnealing.getAggregatedProbabilityPlot(100).data;
       for (let i = 0; i < probabilityPlotData.length; i += plotDataBatchSize) {
         const endSlice = Math.min(
           i + plotDataBatchSize,
@@ -147,10 +151,11 @@ export const GET = async (req: NextRequest) => {
         );
 
         const batch = probabilityPlotData.slice(i, endSlice);
+        const batchIdx = Math.floor(i / plotDataBatchSize);
 
         await writer.write({
           type: "probabilityPlotData",
-          index: i,
+          index: batchIdx,
           data: batch,
         });
 
