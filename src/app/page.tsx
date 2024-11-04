@@ -47,10 +47,9 @@ export default function MagicCubeSolver() {
 
   // Stream processor
   const processStreamedData = useStreamProcessor({
-    onMetricsUpdate: (metrics) => {
-      console.log("ini metrics: ", metrics);
-      dispatch({ type: "SET_METRICS", payload: metrics });
-    },
+    onMetricsUpdate: (metrics) => 
+      dispatch({ type: "SET_METRICS", payload: metrics })
+    ,
     onStatesUpdate: (states) =>
       dispatch({ type: "SET_MAGIC_CUBES", payload: states }),
     onPlotsUpdate: (plots) => dispatch({ type: "SET_PLOTS", payload: plots }),
@@ -257,14 +256,14 @@ export default function MagicCubeSolver() {
                   dispatch({ type: "SET_CURRENT_STEP", payload: value[0] })
                 }
                 className={cn("w-[60%]")}
-                disabled={!state.magicCubes || state.isPlaying}
+                disabled={!state.magicCubes || state.isPlaying || state.isLoading}
               />
               <div className="text-sm text-gray-600">
                 Step: {state.currentStep + 1} / {maxStep + 1}
               </div>
               <PlaybackControls
                 isPlaying={state.isPlaying}
-                disabled={!state.magicCubes}
+                disabled={!state.magicCubes || state.isLoading}
                 onPrev={() =>
                   dispatch({
                     type: "SET_CURRENT_STEP",

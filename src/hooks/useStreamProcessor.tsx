@@ -20,7 +20,6 @@ export const useStreamProcessor = ({
   onStatesUpdate,
   onPlotsUpdate,
 }: StreamProcessorProps) => {
-  // Use ref to maintain data between renders and avoid race conditions
   const plotDataRef = useRef<PlotData>({
     objectiveFunctionPlot: null,
     probabilityPlot: null,
@@ -31,21 +30,25 @@ export const useStreamProcessor = ({
   const updatePlotsIfReady = useCallback(() => {
     const { objectiveFunctionPlot, probabilityPlot } = plotDataRef.current;
     if (objectiveFunctionPlot && probabilityPlot) {
-      onPlotsUpdate([objectiveFunctionPlot, probabilityPlot]);
+      // Create new plot objects to avoid reference issues
+      const plots = [
+        { ...objectiveFunctionPlot, data: [...objectiveFunctionPlot.data] },
+        { ...probabilityPlot, data: [...probabilityPlot.data] }
+      ];
+      onPlotsUpdate(plots);
     }
   }, [onPlotsUpdate]);
 
   const processStreamedData = useCallback(
     async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
       const decoder = new TextDecoder();
-      let buffer = ""; // Buffer for incomplete messages
+      let buffer = "";
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          // Append new chunk to buffer and process complete messages
           buffer += decoder.decode(value, { stream: true });
 
           let newlineIndex;
@@ -64,9 +67,10 @@ export const useStreamProcessor = ({
                   break;
 
                 case "states":
-                  // Update states array
-                  plotDataRef.current.states.push(...data.data);
-                  onStatesUpdate(plotDataRef.current.states);
+                  // Create a new array to avoid reference issues
+                  const updatedStates = [...plotDataRef.current.states, ...data.data];
+                  plotDataRef.current.states = updatedStates;
+                  onStatesUpdate(updatedStates);
                   break;
 
                 case "objectiveFunctionPlotMeta":
@@ -90,23 +94,29 @@ export const useStreamProcessor = ({
                 case "objectiveFunctionPlotData":
                   if (plotDataRef.current.objectiveFunctionPlot) {
                     const plot = plotDataRef.current.objectiveFunctionPlot;
-                    // Ensure ordered insertion of data
-                    plot.data.splice(data.index, 0, ...data.data);
-                    updatePlotsIfReady();
+                    // Create a new array and use spread operator to avoid mutation
+                    const newData = [...plot.data];
+                    newData.splice(data.index, 0, ...data.data);
+                    plot.data = newData;
+                    // Throttle updates to prevent stack overflow
+                    requestAnimationFrame(() => updatePlotsIfReady());
                   }
                   break;
 
                 case "probabilityPlotData":
                   if (plotDataRef.current.probabilityPlot) {
                     const plot = plotDataRef.current.probabilityPlot;
-                    // Ensure ordered insertion of data
-                    plot.data.splice(data.index, 0, ...data.data);
-                    updatePlotsIfReady();
+                    // Create a new array and use spread operator to avoid mutation
+                    const newData = [...plot.data];
+                    newData.splice(data.index, 0, ...data.data);
+                    plot.data = newData;
+                    // Throttle updates to prevent stack overflow
+                    requestAnimationFrame(() => updatePlotsIfReady());
                   }
                   break;
               }
             } catch (error) {
-              console.error("Error parsing message:", error);
+              console.error("Error parsing message:", error, message);
             }
           }
         }
